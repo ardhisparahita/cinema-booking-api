@@ -1,0 +1,12 @@
+CREATE TABLE studios (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    theater_id BIGINT UNSIGNED NOT NULL,
+    name VARCHAR(50) NOT NULL,
+    total_rows SMALLINT UNSIGNED NOT NULL,
+    total_cols SMALLINT UNSIGNED NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_studios_theater FOREIGN KEY (theater_id) REFERENCES theaters (id) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT uq_studios_theater_name UNIQUE (theater_id, name),
+    INDEX idx_studios_theater_id (theater_id)
+) Engine = InnoDB;
