@@ -3,7 +3,7 @@ package database
 import (
 	"fmt"
 
-	"github.com/ardhisparahita/cinema-booking-api/internal/config"
+	"github.com/ardhisparahita/cinema-booking-api/pkg/config"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
