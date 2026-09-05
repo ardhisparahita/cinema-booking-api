@@ -17,7 +17,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type authServiceImpl struct {
+type AuthServiceImpl struct {
 	repo       repository.UserRepository
 	jwtManager jwt.Manager
 	accessTTL  time.Duration
@@ -30,7 +30,7 @@ func NewAuthService(
 	accessTTL time.Duration,
 	refreshTTL time.Duration,
 ) AuthService {
-	return &authServiceImpl{
+	return &AuthServiceImpl{
 		repo:       repo,
 		jwtManager: jwtManager,
 		accessTTL:  accessTTL,
@@ -38,7 +38,7 @@ func NewAuthService(
 	}
 }
 
-func (s *authServiceImpl) Register(ctx context.Context, req request.RegisterRequest) (*response.AuthResponse, error) {
+func (s *AuthServiceImpl) Register(ctx context.Context, req request.RegisterRequest) (*response.AuthResponse, error) {
 	_, err := s.repo.FindUserByEmail(ctx, req.Email)
 	if err == nil {
 		return nil, repository.ErrEmailAlreadyExists
@@ -66,7 +66,7 @@ func (s *authServiceImpl) Register(ctx context.Context, req request.RegisterRequ
 	return s.issueAuthResponse(ctx, &user)
 }
 
-func (s *authServiceImpl) Login(ctx context.Context, req request.LoginRequest) (*response.AuthResponse, error) {
+func (s *AuthServiceImpl) Login(ctx context.Context, req request.LoginRequest) (*response.AuthResponse, error) {
 	user, err := s.repo.FindUserByEmail(ctx, req.Email)
 	if err != nil {
 		if errors.Is(err, repository.ErrUserNotFound) {
@@ -82,7 +82,7 @@ func (s *authServiceImpl) Login(ctx context.Context, req request.LoginRequest) (
 	return s.issueAuthResponse(ctx, user)
 }
 
-func (s *authServiceImpl) Refresh(ctx context.Context, rawRefreshToken string) (*response.TokenResponse, error) {
+func (s *AuthServiceImpl) Refresh(ctx context.Context, rawRefreshToken string) (*response.TokenResponse, error) {
 	if rawRefreshToken == "" {
 		return nil, errors.New("invalid token")
 	}
@@ -129,7 +129,7 @@ func (s *authServiceImpl) Refresh(ctx context.Context, rawRefreshToken string) (
 	}, nil
 }
 
-func (s *authServiceImpl) Logout(ctx context.Context, rawRefreshToken string) error {
+func (s *AuthServiceImpl) Logout(ctx context.Context, rawRefreshToken string) error {
 	if rawRefreshToken == "" {
 		return errors.New("invalid token input")
 	}
@@ -137,7 +137,7 @@ func (s *authServiceImpl) Logout(ctx context.Context, rawRefreshToken string) er
 	return s.repo.RevokeRefreshToken(ctx, hashToken(rawRefreshToken), time.Now())
 }
 
-func (s *authServiceImpl) issueAuthResponse(ctx context.Context, user *models.User) (*response.AuthResponse, error) {
+func (s *AuthServiceImpl) issueAuthResponse(ctx context.Context, user *models.User) (*response.AuthResponse, error) {
 	accessToken, err := s.jwtManager.GenerateAccessToken(user.ID, user.Role, s.accessTTL)
 	if err != nil {
 		return nil, err

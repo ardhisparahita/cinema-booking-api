@@ -84,13 +84,32 @@ func (r *UserRepositoryImpl) FindRefreshToken(ctx context.Context, TokenHash str
 }
 
 func (r *UserRepositoryImpl) RevokeRefreshToken(ctx context.Context, TokenHash string, revokedAt time.Time) error {
-	result := r.DB.WithContext(ctx).Model(&models.RefreshToken{}).Where("token_hash = ? AND revoked_at IS NULL", TokenHash).Update("revoked_at", revokedAt)
+	result := r.DB.WithContext(ctx).Model(&models.RefreshToken{}).Where("token = ? AND revoked_at IS NULL", TokenHash).Update("revoked_at", revokedAt)
 
 	if result.Error != nil {
 		return result.Error
 	}
 	if result.RowsAffected == 0 {
 		return ErrRefreshNotFound
+	}
+
+	return nil
+}
+
+func (r *UserRepositoryImpl) UpdateUser(ctx context.Context, user *models.User) error {
+	return r.DB.WithContext(ctx).Model(&models.User{}).Where("id = ?", user.ID).Updates(map[string]any{
+		"name":         user.Name,
+		"phone_number": user.PhoneNumber,
+	}).Error
+}
+
+func (r *UserRepositoryImpl) DeleteUser(ctx context.Context, id uint) error {
+	result := r.DB.WithContext(ctx).Delete(&models.User{}, id)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrUserNotFound
 	}
 
 	return nil

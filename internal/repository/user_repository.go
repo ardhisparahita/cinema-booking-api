@@ -14,4 +14,7 @@ type UserRepository interface {
 	CreateRefreshToken(ctx context.Context, token *models.RefreshToken) error
 	FindRefreshToken(ctx context.Context, TokenHash string) (*models.RefreshToken, error)
 	RevokeRefreshToken(ctx context.Context, TokenHash string, revokedAt time.Time) error
+
+	UpdateUser(ctx context.Context, user *models.User) error
+	DeleteUser(ctx context.Context, id uint) error
 }

@@ -60,12 +60,16 @@ func main() {
 		accessTTL,
 		refreshTTL,
 	)
+	userService := service.NewUserService(userRepo)
 
 	authHandler := handler.NewAuthHandler(authService)
+	userHandler := handler.NewUserHandler(userService)
 
 	routes.SetupRoutes(
 		app,
 		authHandler,
+		userHandler,
+		jwtManager,
 	)
 
 	log.Fatal(app.Listen(":3000"))
