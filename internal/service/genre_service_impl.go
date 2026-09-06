@@ -93,8 +93,8 @@ func (s *GenreServiceImpl) UpdateGenre(ctx context.Context, id uint, req request
 		if errors.Is(err, repository.ErrGenreNotFound) {
 			return nil, ErrGenreNotFound
 		}
+		return nil, err
 	}
-	return nil, err
 
 	existing, err := s.Repo.FindGenreByName(ctx, name)
 	if err == nil && existing.ID != genre.ID {
