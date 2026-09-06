@@ -55,3 +55,26 @@ func Auth(jwtManager *jwt.Manager) fiber.Handler {
 		return c.Next()
 	}
 }
+
+func Role(roles ...string) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		userRole, ok := c.Locals(RoleKey).(string)
+		if !ok {
+			return fiber.NewError(
+				fiber.StatusForbidden,
+				"role not found",
+			)
+		}
+
+		for _, role := range roles {
+			if userRole == role {
+				return c.Next()
+			}
+		}
+
+		return fiber.NewError(
+			fiber.StatusForbidden,
+			"you don't have permission to access this resource",
+		)
+	}
+}
