@@ -112,7 +112,7 @@ func (h *GenreHandler) Create(c fiber.Ctx) error {
 			return utils.ResponseError(
 				c,
 				fiber.StatusConflict,
-				"genre already exist",
+				"genre already exist2",
 				err,
 			)
 		}

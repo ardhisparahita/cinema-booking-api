@@ -30,7 +30,7 @@ func (r *GenreRepositoryImpl) CreateGenre(ctx context.Context, genre *models.Gen
 func (r *GenreRepositoryImpl) FindAllGenre(ctx context.Context) ([]models.Genre, error) {
 	var genres []models.Genre
 
-	err := r.DB.WithContext(ctx).Order("name ASD").Find(&genres).Error
+	err := r.DB.WithContext(ctx).Order("name ASC").Find(&genres).Error
 
 	return genres, err
 }
@@ -54,7 +54,7 @@ func (r *GenreRepositoryImpl) FindGenreByID(ctx context.Context, id uint) (*mode
 func (r *GenreRepositoryImpl) FindGenreByName(ctx context.Context, name string) (*models.Genre, error) {
 	var genre models.Genre
 
-	err := r.DB.WithContext(ctx).Where("name = ?", name).Error
+	err := r.DB.WithContext(ctx).Where("name = ?", name).First(&genre).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrGenreNotFound

@@ -53,6 +53,7 @@ func main() {
 	})
 
 	userRepo := repository.NewUserRepository(db)
+	genreRepo := repository.NewGenreRepository(db)
 
 	authService := service.NewAuthService(
 		userRepo,
@@ -61,15 +62,18 @@ func main() {
 		refreshTTL,
 	)
 	userService := service.NewUserService(userRepo)
+	genreService := service.NewGenreService(genreRepo)
 
 	authHandler := handler.NewAuthHandler(authService)
 	userHandler := handler.NewUserHandler(userService)
+	genreHandler := handler.NewGenreHandler(genreService)
 
 	routes.SetupRoutes(
 		app,
 		authHandler,
 		userHandler,
 		jwtManager,
+		genreHandler,
 	)
 
 	log.Fatal(app.Listen(":3000"))
