@@ -12,7 +12,6 @@ import (
 )
 
 var (
-	ErrGenreNotFound     = errors.New("genre not found")
 	ErrGenreAlreadyExist = errors.New("genre already exist")
 )
 

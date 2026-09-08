@@ -8,7 +8,7 @@ type Movie struct {
 	Synopsis    string    `gorm:"type:text" json:"synopsis"`
 	DurationMin uint16    `gorm:"not null" json:"duration_min"`
 	Rating      string    `gorm:"type:enum('su','13+','17+','21+');not null" json:"rating"`
-	PosterUrl   string    `gorm:"size:255" json:"poster_url"`
+	PosterURL   string    `gorm:"size:255" json:"poster_url"`
 	ReleaseDate time.Time `gorm:"type:date" json:"release_date"`
 	IsActive    bool      `gorm:"not null;default=true" json:"is_active"`
 	CreatedAt   time.Time `json:"created_at"`

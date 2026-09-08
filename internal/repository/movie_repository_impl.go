@@ -55,7 +55,7 @@ func (r *MovieRepositoryImpl) UpdateMovie(ctx context.Context, movie *models.Mov
 		"synopsis":     movie.Synopsis,
 		"duration_min": movie.DurationMin,
 		"rating":       movie.Rating,
-		"poster_url":   movie.PosterUrl,
+		"poster_url":   movie.PosterURL,
 		"release_date": movie.ReleaseDate,
 		"is_active":    movie.IsActive,
 	}).Error
