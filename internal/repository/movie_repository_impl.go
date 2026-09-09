@@ -39,7 +39,7 @@ func (r *MovieRepositoryImpl) FindMovieByID(ctx context.Context, id uint) (*mode
 	err := r.DB.WithContext(ctx).Preload("MovieGenres").Preload("MovieGenres.Genre").First(&movie, id).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, ErrGenreNotFound
+		return nil, ErrMovieNotFound
 	}
 
 	if err != nil {

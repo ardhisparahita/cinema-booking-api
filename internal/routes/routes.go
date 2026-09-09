@@ -29,11 +29,11 @@ func SetupRoutes(app *fiber.App, authHandler *handler.AuthHandler, userHandler *
 	genres.Put("/:id", middleware.Role("admin"), genreHandler.Update)
 	genres.Delete("/:id", middleware.Role("admin"), genreHandler.Delete)
 
-	movies := api.Group("movies", middleware.Auth(jwtManager))
+	movies := api.Group("/movies", middleware.Auth(jwtManager))
 	movies.Get("/", movieHandler.GetAll)
 	movies.Get("/:id", movieHandler.GetByID)
 
-	genres.Post("/", middleware.Role("admin"), movieHandler.Create)
-	genres.Put("/:id", middleware.Role("admin"), movieHandler.Update)
-	genres.Delete("/:id", middleware.Role("admin"), movieHandler.Delete)
+	movies.Post("/", middleware.Role("admin"), movieHandler.Create)
+	movies.Put("/:id", middleware.Role("admin"), movieHandler.Update)
+	movies.Delete("/:id", middleware.Role("admin"), movieHandler.Delete)
 }

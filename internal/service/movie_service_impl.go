@@ -24,7 +24,10 @@ type MovieServiceImpl struct {
 }
 
 func NewMovieService(repo repository.MovieRepository, db *gorm.DB) MovieService {
-	return &MovieServiceImpl{}
+	return &MovieServiceImpl{
+		Repo: repo,
+		DB:   db,
+	}
 }
 
 func (s *MovieServiceImpl) CreateMovie(ctx context.Context, req request.CreateMovieRequest) (*response.MovieResponse, error) {
@@ -76,7 +79,6 @@ func (s *MovieServiceImpl) CreateMovie(ctx context.Context, req request.CreateMo
 		if err := txRepo.CreateMovieGenres(ctx, movieGenres); err != nil {
 			return err
 		}
-
 		return nil
 	})
 
