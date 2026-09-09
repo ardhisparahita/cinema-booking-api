@@ -7,7 +7,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-func SetupRoutes(app *fiber.App, authHandler *handler.AuthHandler, userHandler *handler.UserHandler, jwtManager *jwt.Manager, genreHandler *handler.GenreHandler) {
+func SetupRoutes(app *fiber.App, authHandler *handler.AuthHandler, userHandler *handler.UserHandler, jwtManager *jwt.Manager, genreHandler *handler.GenreHandler, movieHandler *handler.MovieHandler) {
 	api := app.Group("/api/v1")
 
 	auth := api.Group("/auth")
@@ -28,4 +28,12 @@ func SetupRoutes(app *fiber.App, authHandler *handler.AuthHandler, userHandler *
 	genres.Post("/", middleware.Role("admin"), genreHandler.Create)
 	genres.Put("/:id", middleware.Role("admin"), genreHandler.Update)
 	genres.Delete("/:id", middleware.Role("admin"), genreHandler.Delete)
+
+	movies := api.Group("movies", middleware.Auth(jwtManager))
+	movies.Get("/", movieHandler.GetAll)
+	movies.Get("/:id", movieHandler.GetByID)
+
+	genres.Post("/", middleware.Role("admin"), movieHandler.Create)
+	genres.Put("/:id", middleware.Role("admin"), movieHandler.Update)
+	genres.Delete("/:id", middleware.Role("admin"), movieHandler.Delete)
 }
