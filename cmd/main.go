@@ -55,6 +55,7 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	genreRepo := repository.NewGenreRepository(db)
 	movieRepo := repository.NewMovieRepository(db)
+	theaterRepo := repository.NewTheaterRepository(db)
 
 	authService := service.NewAuthService(
 		userRepo,
@@ -65,11 +66,13 @@ func main() {
 	userService := service.NewUserService(userRepo)
 	genreService := service.NewGenreService(genreRepo)
 	movieService := service.NewMovieService(movieRepo, db)
+	theaterService := service.NewTheaterService(theaterRepo)
 
 	authHandler := handler.NewAuthHandler(authService)
 	userHandler := handler.NewUserHandler(userService)
 	genreHandler := handler.NewGenreHandler(genreService)
 	movieHandler := handler.NewMovieHandler(movieService)
+	theaterHandler := handler.NewTheaterHandler(theaterService)
 
 	routes.SetupRoutes(
 		app,
@@ -78,6 +81,7 @@ func main() {
 		jwtManager,
 		genreHandler,
 		movieHandler,
+		theaterHandler,
 	)
 
 	log.Fatal(app.Listen(":3000"))
