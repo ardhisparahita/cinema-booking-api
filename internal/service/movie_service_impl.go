@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/request"
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/response"
@@ -50,13 +51,18 @@ func (s *MovieServiceImpl) CreateMovie(ctx context.Context, req request.CreateMo
 		return nil, ErrGenreNotFound
 	}
 
+	releaseDate, err := time.Parse("2006-01-02", req.ReleaseDate)
+	if err != nil {
+		return nil, err
+	}
+
 	movie := &models.Movie{
 		Title:       title,
 		Synopsis:    strings.TrimSpace(req.Synopsis),
 		DurationMin: req.DurationMin,
 		Rating:      req.Rating,
 		PosterURL:   strings.TrimSpace(req.PosterURL),
-		ReleaseDate: req.ReleaseDate,
+		ReleaseDate: releaseDate,
 		IsActive:    true,
 	}
 
@@ -142,12 +148,17 @@ func (s *MovieServiceImpl) UpdateMovie(ctx context.Context, id uint, req request
 		return nil, ErrGenreNotFound
 	}
 
+	releaseDate, err := time.Parse("2006-01-02", req.ReleaseDate)
+	if err != nil {
+		return nil, err
+	}
+
 	movie.Title = strings.TrimSpace(req.Title)
 	movie.Synopsis = strings.TrimSpace(req.Synopsis)
 	movie.DurationMin = req.DurationMin
 	movie.Rating = req.Rating
 	movie.PosterURL = strings.TrimSpace(req.PosterURL)
-	movie.ReleaseDate = req.ReleaseDate
+	movie.ReleaseDate = releaseDate
 	movie.IsActive = req.IsActive
 
 	err = s.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -237,7 +248,7 @@ func toMovieResponse(movie models.Movie) response.MovieResponse {
 		DurationMin: movie.DurationMin,
 		Rating:      movie.Rating,
 		PosterURL:   movie.PosterURL,
-		ReleaseDate: movie.ReleaseDate,
+		ReleaseDate: movie.ReleaseDate.Format("2006-01-02"),
 		IsActive:    movie.IsActive,
 		Genres:      genres,
 		CreatedAt:   movie.CreatedAt,
