@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	ErrStudioNotFound = errors.New("studio not found")
-	ErrStudioExist    = errors.New("studio already exist")
+	ErrStudioNotFound     = errors.New("studio not found")
+	ErrStudioAlreadyExist = errors.New("studio already exist")
 )
 
 type StudioRepositoryImpl struct {
@@ -29,7 +29,7 @@ func (r *StudioRepositoryImpl) CreateStudio(ctx context.Context, studio *models.
 	err := r.DB.WithContext(ctx).Where("theater_id = ? AND name = ?", studio.TheaterID, studio.Name).First(&existing).Error
 
 	if err == nil {
-		return ErrStudioExist
+		return ErrStudioAlreadyExist
 	}
 
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -85,7 +85,7 @@ func (r *StudioRepositoryImpl) UpdateStudio(ctx context.Context, studio *models.
 	err := r.DB.WithContext(ctx).Where("theater_id = ? AND name = ? AND id != ?", studio.TheaterID, studio.Name, studio.ID).First(&existing).Error
 
 	if err == nil {
-		return ErrStudioExist
+		return ErrStudioAlreadyExist
 	}
 
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
