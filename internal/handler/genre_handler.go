@@ -41,7 +41,7 @@ func (h *GenreHandler) GetAll(c fiber.Ctx) error {
 }
 
 func (h *GenreHandler) GetByID(c fiber.Ctx) error {
-	id, err := strconv.ParseInt(
+	id, err := strconv.ParseUint(
 		c.Params("id"),
 		10,
 		64,
@@ -134,7 +134,7 @@ func (h *GenreHandler) Create(c fiber.Ctx) error {
 }
 
 func (h *GenreHandler) Update(c fiber.Ctx) error {
-	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 
 	if err != nil {
 		return utils.ResponseError(
