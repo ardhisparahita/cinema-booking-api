@@ -151,6 +151,13 @@ func (h *SeatHandler) Create(c fiber.Ctx) error {
 				"invalid seat data",
 				err,
 			)
+		case errors.Is(err, service.ErrSeatOutsideStudioLayout):
+			return utils.ResponseError(
+				c,
+				fiber.StatusBadRequest,
+				"seat position is outside studio layout",
+				err,
+			)
 		default:
 			return utils.ResponseError(
 				c,
@@ -222,6 +229,13 @@ func (h *SeatHandler) Update(c fiber.Ctx) error {
 				c,
 				fiber.StatusBadRequest,
 				"invalid seat data",
+				err,
+			)
+		case errors.Is(err, service.ErrSeatOutsideStudioLayout):
+			return utils.ResponseError(
+				c,
+				fiber.StatusBadRequest,
+				"seat position is outside studio layout",
 				err,
 			)
 		default:

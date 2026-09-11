@@ -12,11 +12,13 @@ import (
 )
 
 var (
-	ErrSeatNotFound       = errors.New("seat not found")
-	ErrSeatAlreadyExist   = errors.New("seat already exist")
-	ErrStudioNotFoundSeat = errors.New("studio not found")
-	ErrInvalidSeatType    = errors.New("invalid seat type")
-	ErrInvalidSeatRow     = errors.New("invalid seat row")
+	ErrSeatNotFound            = errors.New("seat not found")
+	ErrSeatAlreadyExist        = errors.New("seat already exist")
+	ErrStudioNotFoundSeat      = errors.New("studio not found")
+	ErrInvalidSeatType         = errors.New("invalid seat type")
+	ErrInvalidSeatRow          = errors.New("invalid seat row")
+	ErrInvalidSeatColumn       = errors.New("invalid seat column")
+	ErrSeatOutsideStudioLayout = errors.New("seat position is outside studio layout")
 )
 
 type SeatServiceImpl struct {
@@ -32,7 +34,8 @@ func NewSeatService(repo repository.SeatRepository, studioRepo repository.Studio
 }
 
 func (s *SeatServiceImpl) CreateSeat(ctx context.Context, studioID uint, req request.CreateAndUpdateSeatRequest) (*response.SeatResponse, error) {
-	if _, err := s.StudioRepo.FindStudioByID(ctx, studioID); err != nil {
+	studio, err := s.StudioRepo.FindStudioByID(ctx, studioID)
+	if err != nil {
 		if errors.Is(err, repository.ErrStudioNotFound) {
 			return nil, ErrStudioNotFoundSeat
 		}
@@ -47,6 +50,19 @@ func (s *SeatServiceImpl) CreateSeat(ctx context.Context, studioID uint, req req
 
 	if req.SeatType != "regular" && req.SeatType != "vip" {
 		return nil, ErrInvalidSeatType
+	}
+
+	rowNumber, err := rowLabelToNumber(rowLabel)
+	if err != nil {
+		return nil, ErrInvalidSeatRow
+	}
+
+	if uint16(rowNumber) > studio.TotalRows {
+		return nil, ErrSeatOutsideStudioLayout
+	}
+
+	if req.ColNumber > studio.TotalCols {
+		return nil, ErrSeatOutsideStudioLayout
 	}
 
 	existing, err := s.Repo.FindSeatByPosition(ctx, studioID, rowLabel, req.ColNumber)
@@ -117,6 +133,14 @@ func (s *SeatServiceImpl) UpdateSeat(ctx context.Context, id uint, req request.C
 		return nil, err
 	}
 
+	studio, err := s.StudioRepo.FindStudioByID(ctx, seat.StudioID)
+	if err != nil {
+		if errors.Is(err, ErrStudioNotFound) {
+			return nil, ErrStudioNotFoundSeat
+		}
+		return nil, err
+	}
+
 	rowLabel := strings.ToUpper(strings.TrimSpace(req.RowLabel))
 
 	if rowLabel == "" || len(rowLabel) > 2 {
@@ -125,6 +149,18 @@ func (s *SeatServiceImpl) UpdateSeat(ctx context.Context, id uint, req request.C
 
 	if req.SeatType != "regular" && req.SeatType != "vip" {
 		return nil, ErrInvalidSeatType
+	}
+
+	rowNumber, err := rowLabelToNumber(rowLabel)
+	if err != nil {
+		return nil, ErrInvalidSeatRow
+	}
+
+	if uint16(rowNumber) > studio.TotalRows {
+		return nil, ErrSeatOutsideStudioLayout
+	}
+	if req.ColNumber > studio.TotalCols {
+		return nil, ErrSeatOutsideStudioLayout
 	}
 
 	existing, err := s.Repo.FindSeatByPosition(ctx, seat.StudioID, rowLabel, req.ColNumber)
@@ -167,4 +203,22 @@ func toSeatResponse(seat *models.Seat) *response.SeatResponse {
 		SeatType:  seat.SeatType,
 		CreatedAt: seat.CreatedAt,
 	}
+}
+
+func rowLabelToNumber(rowLabel string) (int, error) {
+	if len(rowLabel) == 0 || len(rowLabel) > 2 {
+		return 0, errors.New("invalid row label")
+	}
+
+	result := 0
+
+	for _, char := range rowLabel {
+		if char < 'A' || char > 'Z' {
+			return 0, errors.New("invalid row label")
+		}
+
+		result = result*26 + int(char-'A'+1)
+	}
+
+	return result, nil
 }
