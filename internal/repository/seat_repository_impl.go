@@ -26,7 +26,7 @@ func NewSeatRepository(db *gorm.DB) SeatRepository {
 func (r *SeatRepositoryImpl) CreateSeat(ctx context.Context, seat *models.Seat) error {
 	var existing models.Seat
 
-	err := r.DB.WithContext(ctx).Where("studio_id = ? AND row_label = ?, AND col_number = ?", seat.StudioID, seat.RowLabel, seat.ColNumber).First(&existing).Error
+	err := r.DB.WithContext(ctx).Where("studio_id = ? AND row_label = ? AND col_number = ?", seat.StudioID, seat.RowLabel, seat.ColNumber).First(&existing).Error
 
 	if err == nil {
 		return ErrSeatAlreadyExist

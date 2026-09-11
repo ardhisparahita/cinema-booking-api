@@ -53,7 +53,7 @@ func (s *SeatServiceImpl) CreateSeat(ctx context.Context, studioID uint, req req
 	if err == nil && existing != nil {
 		return nil, ErrSeatAlreadyExist
 	}
-	if err != nil && errors.Is(err, repository.ErrSeatNotFound) {
+	if err != nil && !errors.Is(err, repository.ErrSeatNotFound) {
 		return nil, err
 	}
 

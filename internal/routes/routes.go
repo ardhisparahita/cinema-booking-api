@@ -7,7 +7,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-func SetupRoutes(app *fiber.App, authHandler *handler.AuthHandler, userHandler *handler.UserHandler, jwtManager *jwt.Manager, genreHandler *handler.GenreHandler, movieHandler *handler.MovieHandler, theaterHandler *handler.TheaterHandler, studioHandler *handler.StudioHandler) {
+func SetupRoutes(app *fiber.App, authHandler *handler.AuthHandler, userHandler *handler.UserHandler, jwtManager *jwt.Manager, genreHandler *handler.GenreHandler, movieHandler *handler.MovieHandler, theaterHandler *handler.TheaterHandler, studioHandler *handler.StudioHandler, seatHandler *handler.SeatHandler) {
 	api := app.Group("/api/v1")
 
 	auth := api.Group("/auth")
@@ -51,7 +51,17 @@ func SetupRoutes(app *fiber.App, authHandler *handler.AuthHandler, userHandler *
 	studios.Post("/theaters/:theaterId/studios", middleware.Role("admin"), studioHandler.Create)
 
 	studios.Get("/studios/:id", studioHandler.GetByID)
-	
+
 	studios.Put("/studios/:id", middleware.Role("admin"), studioHandler.Update)
 	studios.Delete("/studios/:id", middleware.Role("admin"), studioHandler.Delete)
+
+	seats := api.Group("", middleware.Auth(jwtManager))
+	seats.Get("/studios/:studioId/seats", seatHandler.GetAll)
+
+	seats.Post("/studios/:studioId/seats", middleware.Role("admin"), seatHandler.Create)
+
+	seats.Get("/seats/:id", seatHandler.GetByID)
+
+	seats.Put("/seats/:id", middleware.Role("admin"), seatHandler.Update)
+	seats.Delete("/seats/:id", middleware.Role("admin"), seatHandler.Delete)
 }
