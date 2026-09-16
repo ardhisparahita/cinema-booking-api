@@ -70,7 +70,7 @@ func (r *BookingRepositoryImpl) FindBookedSeatIDs(ctx context.Context, showtimeI
 }
 
 func (r *BookingRepositoryImpl) CancelBooking(ctx context.Context, id uint) error {
-	result := r.DB.WithContext(ctx).Model(&models.Booking{}).Where("id = ?", id).Update("status", "cancelled")
+	result := r.DB.WithContext(ctx).Model(&models.Booking{}).Where("id = ? AND status = ?", id, "pending").Update("status", "cancelled")
 
 	if result.Error != nil {
 		return result.Error

@@ -100,3 +100,15 @@ func (r *SeatRepositoryImpl) DeleteSeat(ctx context.Context, id uint16) error {
 
 	return nil
 }
+
+func (r *SeatRepositoryImpl) FindSeatByIDs(ctx context.Context, ids []uint) ([]models.Seat, error) {
+	var seats []models.Seat
+
+	if len(seats) == 0 {
+		return seats, nil
+	}
+
+	err := r.DB.WithContext(ctx).Where("id IN ?", ids).Find(&seats).Error
+
+	return seats, err
+}
