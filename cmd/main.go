@@ -58,6 +58,7 @@ func main() {
 	theaterRepo := repository.NewTheaterRepository(db)
 	studioRepo := repository.NewStudioRepository(db)
 	seatRepo := repository.NewSeatRepository(db)
+	showtimeRepo := repository.NewShowtimeRepository(db)
 
 	authService := service.NewAuthService(
 		userRepo,
@@ -71,6 +72,7 @@ func main() {
 	theaterService := service.NewTheaterService(theaterRepo)
 	studioService := service.NewStudioService(studioRepo, theaterRepo)
 	seatService := service.NewSeatService(seatRepo, studioRepo)
+	showtimeService := service.NewShowtimeService(showtimeRepo, movieRepo, studioRepo)
 
 	authHandler := handler.NewAuthHandler(authService)
 	userHandler := handler.NewUserHandler(userService)
@@ -79,6 +81,7 @@ func main() {
 	theaterHandler := handler.NewTheaterHandler(theaterService)
 	studioHandler := handler.NewStudioHandler(studioService)
 	seatHandler := handler.NewSeatHandler(seatService)
+	showtimeHandler := handler.NewShowtimeHandler(showtimeService)
 
 	routes.SetupRoutes(
 		app,
@@ -90,6 +93,7 @@ func main() {
 		theaterHandler,
 		studioHandler,
 		seatHandler,
+		showtimeHandler,
 	)
 
 	log.Fatal(app.Listen(":3000"))

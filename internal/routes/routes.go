@@ -7,7 +7,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-func SetupRoutes(app *fiber.App, authHandler *handler.AuthHandler, userHandler *handler.UserHandler, jwtManager *jwt.Manager, genreHandler *handler.GenreHandler, movieHandler *handler.MovieHandler, theaterHandler *handler.TheaterHandler, studioHandler *handler.StudioHandler, seatHandler *handler.SeatHandler) {
+func SetupRoutes(app *fiber.App, authHandler *handler.AuthHandler, userHandler *handler.UserHandler, jwtManager *jwt.Manager, genreHandler *handler.GenreHandler, movieHandler *handler.MovieHandler, theaterHandler *handler.TheaterHandler, studioHandler *handler.StudioHandler, seatHandler *handler.SeatHandler, showtimeHandler *handler.ShowtimeHandler) {
 	api := app.Group("/api/v1")
 
 	auth := api.Group("/auth")
@@ -64,4 +64,12 @@ func SetupRoutes(app *fiber.App, authHandler *handler.AuthHandler, userHandler *
 
 	seats.Put("/seats/:id", middleware.Role("admin"), seatHandler.Update)
 	seats.Delete("/seats/:id", middleware.Role("admin"), seatHandler.Delete)
+
+	showtimes := api.Group("showtimes", middleware.Auth(jwtManager))
+	showtimes.Get("/", showtimeHandler.GetAll)
+	showtimes.Get("/:id", showtimeHandler.GetByID)
+
+	showtimes.Post("/", middleware.Role("admin"), showtimeHandler.Create)
+	showtimes.Put("/:id", middleware.Role("admin"), showtimeHandler.Update)
+	showtimes.Delete("/:id", middleware.Role("admin"), showtimeHandler.Delete)
 }
