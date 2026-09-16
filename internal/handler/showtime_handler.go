@@ -128,6 +128,13 @@ func (h *ShowtimeHandler) Create(c fiber.Ctx) error {
 				"showtime conflicts with another showtime",
 				err,
 			)
+		case errors.Is(err, service.ErrShowtimeInPast):
+			return utils.ResponseError(
+				c,
+				fiber.StatusBadRequest,
+				"showtime cannot be in the past",
+				err,
+			)
 		default:
 			return utils.ResponseError(
 				c,
@@ -213,6 +220,13 @@ func (h *ShowtimeHandler) Update(c fiber.Ctx) error {
 				c,
 				fiber.StatusConflict,
 				"showtime conflicts with another showtime",
+				err,
+			)
+		case errors.Is(err, service.ErrShowtimeInPast):
+			return utils.ResponseError(
+				c,
+				fiber.StatusBadRequest,
+				"showtime cannot be in the past",
 				err,
 			)
 		default:

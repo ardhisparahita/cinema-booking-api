@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/request"
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/response"
@@ -17,6 +18,7 @@ var (
 	ErrInvalidShowtimeTime    = errors.New("end time must be after start time")
 	ErrShowtimeConflict       = errors.New("showtime conflict with another showtime")
 	ErrInvalidShowtimePrice   = errors.New("price must be greater than zero")
+	ErrShowtimeInPast         = errors.New("showtime cannot be in the past")
 )
 
 type ShowtimeServiceImpl struct {
@@ -36,6 +38,10 @@ func NewShowtimeService(repo repository.ShowtimeRepository, movieRepo repository
 func (s *ShowtimeServiceImpl) CreateShowtime(ctx context.Context, req request.CreateAndUpdateShowtimeRequest) (*response.ShowtimeResponse, error) {
 	if !req.EndTime.After(req.StartTime) {
 		return nil, ErrInvalidShowtimeTime
+	}
+
+	if !req.StartTime.After(time.Now()) {
+		return nil, ErrShowtimeInPast
 	}
 
 	if req.Price <= 0 {
@@ -118,6 +124,10 @@ func (s *ShowtimeServiceImpl) UpdateShowtime(ctx context.Context, id uint, req r
 
 	if !req.StartTime.After(req.StartTime) {
 		return nil, ErrInvalidShowtimeTime
+	}
+
+	if !req.StartTime.After(time.Now()) {
+		return nil, ErrShowtimeInPast
 	}
 
 	if req.Price <= 0 {
