@@ -5,6 +5,9 @@ import "time"
 type BookingSeatResponse struct {
 	ID         uint    `json:"id"`
 	SeatID     uint    `json:"seat_id"`
+	RowLabel   string  `json:"row_label"`
+	ColNumber  uint16  `json:"col_number"`
+	SeatType   uint16  `json:"seat_type"`
 	ShowtimeID uint    `json:"showtime_id"`
 	Price      float64 `json:"price"`
 }

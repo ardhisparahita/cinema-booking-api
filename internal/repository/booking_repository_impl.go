@@ -37,7 +37,7 @@ func (r *BookingRepositoryImpl) CreateBookingSeats(ctx context.Context, tx *gorm
 func (r *BookingRepositoryImpl) FindBookingByID(ctx context.Context, id uint) (*models.Booking, error) {
 	var booking models.Booking
 
-	err := r.DB.WithContext(ctx).First(&booking, id).Error
+	err := r.DB.WithContext(ctx).Preload("BookingSeats").Preload("BookingSeats.Seat").First(&booking, id).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrBookingNotFound
 	}
@@ -52,7 +52,7 @@ func (r *BookingRepositoryImpl) FindBookingByID(ctx context.Context, id uint) (*
 func (r *BookingRepositoryImpl) FindBookingByUserID(ctx context.Context, userID uint) ([]models.Booking, error) {
 	var bookings []models.Booking
 
-	err := r.DB.WithContext(ctx).Where("user_id = ?", userID).Order("created_at DESC").Find(&bookings).Error
+	err := r.DB.WithContext(ctx).Preload("BookingSeats").Preload("BookingSeats.Seat").Where("user_id = ?", userID).Order("created_at DESC").Find(&bookings).Error
 
 	return bookings, err
 }

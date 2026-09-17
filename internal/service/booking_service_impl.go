@@ -208,17 +208,30 @@ func (s *BookingServiceImpl) CancelBooking(ctx context.Context, userID uint, id 
 }
 
 func toBookingResponse(booking *models.Booking) *response.BookingResponse {
+	bookingSeats := make([]response.BookingSeatResponse, 0, len(booking.BookingSeats))
+
+	for _, bookingSeat := range bookingSeats {
+		bookingSeats = append(bookingSeats, response.BookingSeatResponse{
+			ID:         bookingSeat.ID,
+			SeatID:     bookingSeat.SeatID,
+			RowLabel:   bookingSeat.RowLabel,
+			ColNumber:  bookingSeat.ColNumber,
+			SeatType:   bookingSeat.SeatType,
+			ShowtimeID: bookingSeat.ShowtimeID,
+			Price:      bookingSeat.Price,
+		})
+	}
+
 	return &response.BookingResponse{
-		ID:           booking.ID,
-		BookingCode:  booking.BookingCode,
-		UserID:       booking.UserID,
-		ShowtimeID:   booking.ShowtimeID,
-		TotalPrice:   booking.TotalPrice,
-		Status:       booking.Status,
-		ExpiresAt:    booking.ExpiresAt,
-		CreatedAt:    booking.CreatedAt,
-		UpdatedAt:    booking.UpdatedAt,
-		BookingSeats: []response.BookingSeatResponse{},
+		ID:          booking.ID,
+		BookingCode: booking.BookingCode,
+		UserID:      booking.UserID,
+		ShowtimeID:  booking.ShowtimeID,
+		TotalPrice:  booking.TotalPrice,
+		Status:      booking.Status,
+		ExpiresAt:   booking.ExpiresAt,
+		CreatedAt:   booking.CreatedAt,
+		UpdatedAt:   booking.UpdatedAt,
 	}
 }
 
