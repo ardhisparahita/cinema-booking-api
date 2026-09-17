@@ -16,7 +16,7 @@ type BookingResponse struct {
 	ShowtimeID   uint                  `json:"showtime_id"`
 	TotalPrice   float64               `json:"total_price"`
 	Status       string                `json:"status"`
-	ExpiresAt    time.Time             `json:"expires_at"`
+	ExpiresAt    *time.Time            `json:"expires_at"`
 	CreatedAt    time.Time             `json:"created_at"`
 	UpdatedAt    time.Time             `json:"updated_at"`
 	BookingSeats []BookingSeatResponse `json:"booking_seats"`
