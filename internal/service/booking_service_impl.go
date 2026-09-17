@@ -228,7 +228,7 @@ func generateBookingCode() (string, error) {
 		return "", err
 	}
 
-	return fmt.Sprintf("BK-%X%", buf), nil
+	return fmt.Sprintf("BK-%X", buf), nil
 }
 
 func isDuplicateEntryError(err error) bool {
