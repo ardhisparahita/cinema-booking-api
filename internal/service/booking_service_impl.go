@@ -11,6 +11,7 @@ import (
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/response"
 	"github.com/ardhisparahita/cinema-booking-api/internal/models"
 	"github.com/ardhisparahita/cinema-booking-api/internal/repository"
+	"github.com/go-sql-driver/mysql"
 	"gorm.io/gorm"
 )
 
@@ -232,7 +233,11 @@ func generateBookingCode() (string, error) {
 }
 
 func isDuplicateEntryError(err error) bool {
-	return err != nil &&
-		(errors.Is(err, gorm.ErrDuplicatedKey) ||
-			err.Error() == "Error 1062 (23000): Duplicate Entry")
+	var mysqlErr *mysql.MySQLError
+
+	if errors.As(err, &mysqlErr) {
+		return mysqlErr.Number == 1062
+	}
+
+	return errors.Is(err, gorm.ErrDuplicatedKey)
 }
