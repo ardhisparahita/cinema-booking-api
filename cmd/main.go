@@ -16,6 +16,8 @@ import (
 	"github.com/ardhisparahita/cinema-booking-api/pkg/jwt"
 	"github.com/ardhisparahita/cinema-booking-api/pkg/utils"
 	"github.com/gofiber/fiber/v3"
+
+	redisstore "github.com/ardhisparahita/cinema-booking-api/pkg/redis"
 )
 
 func main() {
@@ -40,6 +42,11 @@ func main() {
 		log.Fatal("invalid REFRESH_TOKEN_DAYS")
 	}
 
+	// seatLockMinutes, err := strconv.Atoi(os.Getenv("SEAT_LOCK_MINUTES"))
+	// if err != nil {
+	// 	log.Fatal("invalid SEAT_LOCK_MINUTES")
+	// }
+
 	jwtManager := jwt.NewManager(
 		os.Getenv("JWT_SECRET"),
 		os.Getenv("JWT_ISSUER"),
@@ -47,6 +54,26 @@ func main() {
 
 	accessTTL := time.Duration(accessMinutes) * time.Minute
 	refreshTTL := time.Duration(refreshDays) * 24 * time.Hour
+	// seatLockTTL := time.Duration(seatLockMinutes) * time.Minute
+
+	redisDB, err := strconv.Atoi(os.Getenv("REDIS_DB"))
+	if err != nil {
+		log.Fatal("invalid REDIS_DB")
+	}
+
+	redisClient, err := redisstore.NewClient(
+		os.Getenv("REDIS_ADDR"),
+		os.Getenv("REDIS_PASSWORD"),
+		redisDB,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer redisClient.Close()
+
+	// seatLocker := redisstore.NewSeatLocker(redisClient)
+	log.Println("Redis connected successfully")
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: utils.ErrorHandler,
@@ -59,6 +86,7 @@ func main() {
 	studioRepo := repository.NewStudioRepository(db)
 	seatRepo := repository.NewSeatRepository(db)
 	showtimeRepo := repository.NewShowtimeRepository(db)
+	// bookingRepo := repository.NewBookingRepository(db)
 
 	authService := service.NewAuthService(
 		userRepo,
@@ -73,6 +101,7 @@ func main() {
 	studioService := service.NewStudioService(studioRepo, theaterRepo)
 	seatService := service.NewSeatService(seatRepo, studioRepo)
 	showtimeService := service.NewShowtimeService(showtimeRepo, movieRepo, studioRepo)
+	// bookingService := service.NewBookingService(bookingRepo, showtimeRepo, seatRepo, db, seatLocker, seatLockTTL)
 
 	authHandler := handler.NewAuthHandler(authService)
 	userHandler := handler.NewUserHandler(userService)

@@ -11,7 +11,9 @@ import (
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/response"
 	"github.com/ardhisparahita/cinema-booking-api/internal/models"
 	"github.com/ardhisparahita/cinema-booking-api/internal/repository"
+	redisstore "github.com/ardhisparahita/cinema-booking-api/pkg/redis"
 	"github.com/go-sql-driver/mysql"
+	"github.com/gofiber/fiber/v3"
 	"gorm.io/gorm"
 )
 
@@ -32,14 +34,18 @@ type BookingServiceImpl struct {
 	ShowtimeRepo repository.ShowtimeRepository
 	SeatRepo     repository.SeatRepository
 	DB           *gorm.DB
+	SeatLocker   redisstore.SeatLocker
+	SeatLockTTL  time.Duration
 }
 
-func NewBookingService(repo repository.BookingRepository, showtimeRepo repository.ShowtimeRepository, seatRepo repository.SeatRepository, db *gorm.DB) BookingService {
+func NewBookingService(repo repository.BookingRepository, showtimeRepo repository.ShowtimeRepository, seatRepo repository.SeatRepository, db *gorm.DB, seatLocker redisstore.SeatLocker, seatLockTTL time.Duration) BookingService {
 	return &BookingServiceImpl{
 		Repo:         repo,
 		ShowtimeRepo: showtimeRepo,
 		SeatRepo:     seatRepo,
 		DB:           db,
+		SeatLocker:   seatLocker,
+		SeatLockTTL:  seatLockTTL,
 	}
 }
 
@@ -96,6 +102,31 @@ func (s *BookingServiceImpl) CreateBooking(ctx context.Context, userID uint, req
 		return nil, err
 	}
 
+	locked, err := s.SeatLocker.LockSeats(ctx, req.ShowtimeID, req.SeatIDs, bookingCode, s.SeatLockTTL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to lock seats: %w", err)
+	}
+
+	if !locked {
+		return nil, fiber.NewError(
+			fiber.StatusConflict,
+			"one or more seats currently locker",
+		)
+	}
+
+	unlock := true
+
+	defer func() {
+		if unlock {
+			_ = s.SeatLocker.UnlockSeats(
+				ctx,
+				req.ShowtimeID,
+				req.SeatIDs,
+				bookingCode,
+			)
+		}
+	}()
+
 	now := time.Now()
 	expiresAt := now.Add(10 * time.Minute)
 
@@ -137,6 +168,8 @@ func (s *BookingServiceImpl) CreateBooking(ctx context.Context, userID uint, req
 		return nil
 	})
 
+	unlock = false
+	
 	if err != nil {
 		if isDuplicateEntryError(err) {
 			return nil, ErrSeatAlreadyBooked
