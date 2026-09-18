@@ -54,12 +54,71 @@ func (h *BookingHandler) Create(c fiber.Ctx) error {
 
 	res, err := h.Service.CreateBooking(c.Context(), userID, req)
 	if err != nil {
-		return utils.ResponseError(
-			c,
-			fiber.StatusInternalServerError,
-			"failed to create booking",
-			err,
-		)
+		switch {
+		case errors.Is(err, service.ErrInvalidBookingSeats):
+			return utils.ResponseError(
+				c,
+				fiber.StatusBadRequest,
+				"at least one seat in required",
+				err,
+			)
+		case errors.Is(err, service.ErrDuplicateSeat):
+			return utils.ResponseError(
+				c,
+				fiber.StatusBadRequest,
+				"duplicate seat in booking",
+				err,
+			)
+		case errors.Is(err, service.ErrShowtimeNotFoundBook):
+			return utils.ResponseError(
+				c,
+				fiber.StatusNotFound,
+				"showtime not found",
+				err,
+			)
+		case errors.Is(err, service.ErrShowtimeFinished):
+			return utils.ResponseError(
+				c,
+				fiber.StatusConflict,
+				"showtime already finished",
+				err,
+			)
+		case errors.Is(err, service.ErrSeatNotFoundBook):
+			return utils.ResponseError(
+				c,
+				fiber.StatusNotFound,
+				"one or more seats not found",
+				err,
+			)
+		case errors.Is(err, service.ErrSeatWrongStudio):
+			return utils.ResponseError(
+				c,
+				fiber.StatusBadRequest,
+				"one or more seats do not belong to showtime studio",
+				err,
+			)
+		case errors.Is(err, service.ErrSeatAlreadyBooked):
+			return utils.ResponseError(
+				c,
+				fiber.StatusConflict,
+				"one or more seats already booked",
+				err,
+			)
+		case errors.Is(err, service.ErrSeatLocked):
+			return utils.ResponseError(
+				c,
+				fiber.StatusConflict,
+				"one or more seats are currently locked",
+				err,
+			)
+		default:
+			return utils.ResponseError(
+				c,
+				fiber.StatusInternalServerError,
+				"failed to create booking",
+				err,
+			)
+		}
 	}
 
 	return utils.ResponseSuccess(
@@ -109,7 +168,7 @@ func (h *BookingHandler) GetByID(c fiber.Ctx) error {
 		)
 	}
 
-	userID, ok := c.Locals(middleware.RoleKey).(uint)
+	userID, ok := c.Locals(middleware.UserIDKey).(uint)
 	if !ok || userID == 0 {
 		return utils.ResponseError(
 			c,
@@ -129,13 +188,76 @@ func (h *BookingHandler) GetByID(c fiber.Ctx) error {
 				"booking not found",
 				err,
 			)
-		case errors.Is(err, service.errbookin):
+		default:
+			return utils.ResponseError(
+				c,
+				fiber.StatusInternalServerError,
+				"failed to get booking",
+				err,
+			)
+		}
+	}
+
+	return utils.ResponseSuccess(
+		c,
+		fiber.StatusOK,
+		"booking retrieved successfully",
+		res,
+	)
+}
+
+func (h *BookingHandler) CancelBooking(c fiber.Ctx) error {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
+	if err != nil || id == 0 {
+		return utils.ResponseError(
+			c,
+			fiber.StatusBadRequest,
+			"invalid booking id",
+			err,
+		)
+	}
+
+	userID, ok := c.Locals(middleware.UserIDKey).(uint)
+	if !ok || userID == 0 {
+		return utils.ResponseError(
+			c,
+			fiber.StatusUnauthorized,
+			"user not authenticated",
+			err,
+		)
+	}
+
+	err = h.Service.CancelBooking(c.Context(), userID, uint(id))
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrBookingNotFound):
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
 				"booking not found",
 				err,
 			)
+		case errors.Is(err, service.ErrBookingCannotCancel):
+			return utils.ResponseError(
+				c,
+				fiber.StatusConflict,
+				"booking cannot be cancelled",
+				err,
+			)
+		default:
+			return utils.ResponseError(
+				c,
+				fiber.StatusInternalServerError,
+				"failed to cancel booking",
+				err,
+			)
 		}
 	}
+
+	return utils.ResponseSuccess(
+		c,
+		fiber.StatusOK,
+		"booking cancelled successfully",
+		nil,
+	)
 }
