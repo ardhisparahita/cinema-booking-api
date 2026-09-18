@@ -57,17 +57,17 @@ func (r *BookingRepositoryImpl) FindBookingByUserID(ctx context.Context, userID 
 	return bookings, err
 }
 
-	func (r *BookingRepositoryImpl) FindBookedSeatIDs(ctx context.Context, showtimeID uint, seatIDs []uint) ([]uint, error) {
-		if len(seatIDs) == 0 {
-			return []uint{}, nil
-		}
-
-		var bookedSeatIDs []uint
-
-		err := r.DB.WithContext(ctx).Model(&models.BookingSeat{}).Where("showtime_id = ?", showtimeID).Where("seat_id IN ?", seatIDs).Pluck("seat_id", &bookedSeatIDs).Error
-
-		return bookedSeatIDs, err
+func (r *BookingRepositoryImpl) FindBookedSeatIDs(ctx context.Context, showtimeID uint, seatIDs []uint) ([]uint, error) {
+	if len(seatIDs) == 0 {
+		return []uint{}, nil
 	}
+
+	var bookedSeatIDs []uint
+
+	err := r.DB.WithContext(ctx).Model(&models.BookingSeat{}).Where("showtime_id = ?", showtimeID).Where("seat_id IN ?", seatIDs).Pluck("seat_id", &bookedSeatIDs).Error
+
+	return bookedSeatIDs, err
+}
 
 func (r *BookingRepositoryImpl) CancelBooking(ctx context.Context, id uint) error {
 	result := r.DB.WithContext(ctx).Model(&models.Booking{}).Where("id = ? AND status = ?", id, "pending").Update("status", "cancelled")
@@ -81,4 +81,8 @@ func (r *BookingRepositoryImpl) CancelBooking(ctx context.Context, id uint) erro
 	}
 
 	return nil
+}
+
+func (r *BookingRepositoryImpl) DeleteBookingSeats(ctx context.Context, tx *gorm.DB, bookingID uint) error {
+	return tx.WithContext(ctx).Where("booking_id = ?", bookingID).Delete(&models.BookingSeat{}).Error
 }
