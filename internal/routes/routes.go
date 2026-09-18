@@ -76,6 +76,6 @@ func SetupRoutes(app *fiber.App, authHandler *handler.AuthHandler, userHandler *
 	bookings := api.Group("bookings", middleware.Auth(jwtManager))
 	bookings.Post("/", bookingHandler.Create)
 	bookings.Get("/me", bookingHandler.GetMyBookings)
-	bookings.Put("/:id", bookingHandler.GetByID)
-	bookings.Delete("/:id/cancel", bookingHandler.CancelBooking)
+	bookings.Get("/:id", bookingHandler.GetByID)
+	bookings.Post("/:id/cancel", bookingHandler.CancelBooking)
 }

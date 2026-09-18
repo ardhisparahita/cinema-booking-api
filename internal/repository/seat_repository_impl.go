@@ -104,7 +104,7 @@ func (r *SeatRepositoryImpl) DeleteSeat(ctx context.Context, id uint16) error {
 func (r *SeatRepositoryImpl) FindSeatByIDs(ctx context.Context, ids []uint) ([]models.Seat, error) {
 	var seats []models.Seat
 
-	if len(seats) == 0 {
+	if len(ids) == 0 {
 		return seats, nil
 	}
 

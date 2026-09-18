@@ -34,7 +34,7 @@ func seatLockKey(showtimeID, seatID uint) string {
 
 var lockSeatsScript = goredis.NewScript(`
 for _, key in ipairs(KEYS) do 
-	if redis.call("EXIST", key) == 1 then
+	if redis.call("EXISTS", key) == 1 then
 		return 0
 	end
 end

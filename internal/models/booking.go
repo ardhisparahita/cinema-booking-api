@@ -13,7 +13,7 @@ type Booking struct {
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
 
-	BookingSeats []BookingSeat `gorm:"foreignKey:BookingID;references:ID" json:"booking_seats;omitempty"`
+	BookingSeats []BookingSeat `gorm:"foreignKey:BookingID;references:ID" json:"booking_seats,omitempty"`
 }
 
 func (b *Booking) TableName() string {
