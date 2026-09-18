@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/models"
 	"gorm.io/gorm"
@@ -64,7 +65,7 @@ func (r *BookingRepositoryImpl) FindBookedSeatIDs(ctx context.Context, showtimeI
 
 	var bookedSeatIDs []uint
 
-	err := r.DB.WithContext(ctx).Model(&models.BookingSeat{}).Where("showtime_id = ?", showtimeID).Where("seat_id IN ?", seatIDs).Pluck("seat_id", &bookedSeatIDs).Error
+	err := r.DB.WithContext(ctx).Table("booking_seats AS bs").Select("bs.seat_id").Joins("JOIN bookings as b on b.id = bs.booking_id").Where("bs.showtime_id = ?", showtimeID).Where("bs.seat_id IN ?", seatIDs).Where("b.status = 'confirmed' OR (b.status = 'pending' AND b.expires_at > ?)", time.Now()).Pluck("bs.seat_id", &bookedSeatIDs).Error
 
 	return bookedSeatIDs, err
 }
