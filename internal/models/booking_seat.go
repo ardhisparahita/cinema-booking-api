@@ -9,8 +9,7 @@ type BookingSeat struct {
 	SeatID     uint      `gorm:"not null;index" json:"seat_id"`
 	Price      float64   `gorm:"type:decimal(10,2);not null" json:"price"`
 	CreatedAt  time.Time `json:"created_at"`
-
-	Seat Seat `gorm:"foreignKey:SeatID;references:ID" json:"seat,omitempty"`
+	Seat       Seat      `gorm:"foreignKey:SeatID;references:ID" json:"seat,omitempty"`
 }
 
 func (bs *BookingSeat) TableName() string {

@@ -13,7 +13,6 @@ import (
 	"github.com/ardhisparahita/cinema-booking-api/internal/repository"
 	redisstore "github.com/ardhisparahita/cinema-booking-api/pkg/redis"
 	"github.com/go-sql-driver/mysql"
-	"github.com/gofiber/fiber/v3"
 	"gorm.io/gorm"
 )
 
@@ -27,6 +26,7 @@ var (
 	ErrDuplicateSeat        = errors.New("duplicate seat in booking")
 	ErrInvalidBookingSeats  = errors.New("at least on seat is required")
 	ErrBookingCannotCancel  = errors.New("booking cannot be cancelled")
+	ErrSeatLocked           = errors.New("one or more seats are currently locked")
 )
 
 type BookingServiceImpl struct {
@@ -99,7 +99,7 @@ func (s *BookingServiceImpl) CreateBooking(ctx context.Context, userID uint, req
 
 	bookingCode, err := generateBookingCode()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to generate booking code: %w", err)
 	}
 
 	locked, err := s.SeatLocker.LockSeats(ctx, req.ShowtimeID, req.SeatIDs, bookingCode, s.SeatLockTTL)
@@ -108,10 +108,7 @@ func (s *BookingServiceImpl) CreateBooking(ctx context.Context, userID uint, req
 	}
 
 	if !locked {
-		return nil, fiber.NewError(
-			fiber.StatusConflict,
-			"one or more seats currently locker",
-		)
+		return nil, ErrSeatLocked
 	}
 
 	unlock := true
@@ -128,7 +125,7 @@ func (s *BookingServiceImpl) CreateBooking(ctx context.Context, userID uint, req
 	}()
 
 	now := time.Now()
-	expiresAt := now.Add(10 * time.Minute)
+	expiresAt := now.Add(s.SeatLockTTL)
 
 	booking := &models.Booking{
 		BookingCode: bookingCode,
@@ -143,7 +140,6 @@ func (s *BookingServiceImpl) CreateBooking(ctx context.Context, userID uint, req
 
 	for _, seat := range seats {
 		bookingSeats = append(bookingSeats, models.BookingSeat{
-			BookingID:  booking.ID,
 			ShowtimeID: req.ShowtimeID,
 			SeatID:     seat.ID,
 			Price:      showtime.Price,
@@ -168,8 +164,6 @@ func (s *BookingServiceImpl) CreateBooking(ctx context.Context, userID uint, req
 		return nil
 	})
 
-	unlock = false
-	
 	if err != nil {
 		if isDuplicateEntryError(err) {
 			return nil, ErrSeatAlreadyBooked
@@ -177,6 +171,8 @@ func (s *BookingServiceImpl) CreateBooking(ctx context.Context, userID uint, req
 
 		return nil, err
 	}
+
+	unlock = false
 
 	return s.GetBookingByID(ctx, userID, booking.ID)
 }
@@ -237,19 +233,28 @@ func (s *BookingServiceImpl) CancelBooking(ctx context.Context, userID uint, id 
 		return err
 	}
 
+	seatIDs := make([]uint, 0, len(booking.BookingSeats))
+	for _, bookingSeat := range booking.BookingSeats {
+		seatIDs = append(seatIDs, bookingSeat.SeatID)
+	}
+
+	if err := s.SeatLocker.UnlockSeats(ctx, booking.ShowtimeID, seatIDs, booking.BookingCode); err != nil {
+		return fmt.Errorf("booking cancelled but failed to unlock seats: %w", err)
+	}
+
 	return nil
 }
 
 func toBookingResponse(booking *models.Booking) *response.BookingResponse {
 	bookingSeats := make([]response.BookingSeatResponse, 0, len(booking.BookingSeats))
 
-	for _, bookingSeat := range bookingSeats {
+	for _, bookingSeat := range booking.BookingSeats {
 		bookingSeats = append(bookingSeats, response.BookingSeatResponse{
 			ID:         bookingSeat.ID,
 			SeatID:     bookingSeat.SeatID,
-			RowLabel:   bookingSeat.RowLabel,
-			ColNumber:  bookingSeat.ColNumber,
-			SeatType:   bookingSeat.SeatType,
+			RowLabel:   bookingSeat.Seat.RowLabel,
+			ColNumber:  bookingSeat.Seat.ColNumber,
+			SeatType:   bookingSeat.Seat.SeatType,
 			ShowtimeID: bookingSeat.ShowtimeID,
 			Price:      bookingSeat.Price,
 		})
@@ -265,11 +270,12 @@ func toBookingResponse(booking *models.Booking) *response.BookingResponse {
 		ExpiresAt:   booking.ExpiresAt,
 		CreatedAt:   booking.CreatedAt,
 		UpdatedAt:   booking.UpdatedAt,
+		Seats:       bookingSeats,
 	}
 }
 
 func generateBookingCode() (string, error) {
-	buf := make([]byte, 0)
+	buf := make([]byte, 8)
 
 	if _, err := rand.Read(buf); err != nil {
 		return "", err
