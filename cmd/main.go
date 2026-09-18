@@ -42,10 +42,10 @@ func main() {
 		log.Fatal("invalid REFRESH_TOKEN_DAYS")
 	}
 
-	// seatLockMinutes, err := strconv.Atoi(os.Getenv("SEAT_LOCK_MINUTES"))
-	// if err != nil {
-	// 	log.Fatal("invalid SEAT_LOCK_MINUTES")
-	// }
+	seatLockMinutes, err := strconv.Atoi(os.Getenv("SEAT_LOCK_MINUTES"))
+	if err != nil {
+		log.Fatal("invalid SEAT_LOCK_MINUTES")
+	}
 
 	jwtManager := jwt.NewManager(
 		os.Getenv("JWT_SECRET"),
@@ -54,7 +54,7 @@ func main() {
 
 	accessTTL := time.Duration(accessMinutes) * time.Minute
 	refreshTTL := time.Duration(refreshDays) * 24 * time.Hour
-	// seatLockTTL := time.Duration(seatLockMinutes) * time.Minute
+	seatLockTTL := time.Duration(seatLockMinutes) * time.Minute
 
 	redisDB, err := strconv.Atoi(os.Getenv("REDIS_DB"))
 	if err != nil {
@@ -72,7 +72,7 @@ func main() {
 
 	defer redisClient.Close()
 
-	// seatLocker := redisstore.NewSeatLocker(redisClient)
+	seatLocker := redisstore.NewSeatLocker(redisClient)
 	log.Println("Redis connected successfully")
 
 	app := fiber.New(fiber.Config{
@@ -86,7 +86,7 @@ func main() {
 	studioRepo := repository.NewStudioRepository(db)
 	seatRepo := repository.NewSeatRepository(db)
 	showtimeRepo := repository.NewShowtimeRepository(db)
-	// bookingRepo := repository.NewBookingRepository(db)
+	bookingRepo := repository.NewBookingRepository(db)
 
 	authService := service.NewAuthService(
 		userRepo,
@@ -101,7 +101,7 @@ func main() {
 	studioService := service.NewStudioService(studioRepo, theaterRepo)
 	seatService := service.NewSeatService(seatRepo, studioRepo)
 	showtimeService := service.NewShowtimeService(showtimeRepo, movieRepo, studioRepo)
-	// bookingService := service.NewBookingService(bookingRepo, showtimeRepo, seatRepo, db, seatLocker, seatLockTTL)
+	bookingService := service.NewBookingService(bookingRepo, showtimeRepo, seatRepo, db, seatLocker, seatLockTTL)
 
 	authHandler := handler.NewAuthHandler(authService)
 	userHandler := handler.NewUserHandler(userService)
@@ -111,6 +111,7 @@ func main() {
 	studioHandler := handler.NewStudioHandler(studioService)
 	seatHandler := handler.NewSeatHandler(seatService)
 	showtimeHandler := handler.NewShowtimeHandler(showtimeService)
+	bookingHandler := handler.NewBookingHandler(bookingService)
 
 	routes.SetupRoutes(
 		app,
@@ -123,6 +124,7 @@ func main() {
 		studioHandler,
 		seatHandler,
 		showtimeHandler,
+		bookingHandler,
 	)
 
 	log.Fatal(app.Listen(":3000"))
