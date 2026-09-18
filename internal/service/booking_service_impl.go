@@ -225,11 +225,23 @@ func (s *BookingServiceImpl) CancelBooking(ctx context.Context, userID uint, id 
 		return ErrBookingCannotCancel
 	}
 
-	if err := s.Repo.CancelBooking(ctx, id); err != nil {
+	err = s.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txBookingRepo := repository.NewBookingRepository(tx)
+
+		if err := txBookingRepo.CancelBooking(ctx, id); err != nil {
+			return err
+		}
+
+		if err := txBookingRepo.DeleteBookingSeats(ctx, tx, id); err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
 		if errors.Is(err, repository.ErrBookingNotFound) {
 			return ErrBookingNotFound
 		}
-
 		return err
 	}
 
