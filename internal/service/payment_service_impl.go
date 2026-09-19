@@ -42,7 +42,7 @@ func NewPaymentService(repo repository.PaymentRepository, bookingRepo repository
 	}
 }
 
-func (s *PaymentServiceImpl) CreatePayment(ctx context.Context, userID uint, req *request.CreatePaymentRequest) (*response.PaymentResponse, error) {
+func (s *PaymentServiceImpl) CreatePayment(ctx context.Context, userID uint, req request.CreatePaymentRequest) (*response.PaymentResponse, error) {
 	booking, err := s.BookingRepo.FindBookingByID(ctx, req.BookingID)
 	if err != nil {
 		if errors.Is(err, repository.ErrBookingNotFound) {
