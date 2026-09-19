@@ -1,0 +1,1 @@
+ALTER TABLE payments DROP INDEX uq_payments_booking_id;
