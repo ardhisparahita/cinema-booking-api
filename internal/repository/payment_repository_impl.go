@@ -29,7 +29,7 @@ func (r *PaymentRepositoryImpl) CreatePayment(ctx context.Context, tx *gorm.DB, 
 func (r *PaymentRepositoryImpl) FindPaymentByID(ctx context.Context, id uint) (*models.Payment, error) {
 	var payment models.Payment
 
-	err := r.DB.WithContext(ctx).Preload("Booking").Preload("Booking.BookingSeats").Preload("Booking.BookingSeats.Seats").First(&payment, id).Error
+	err := r.DB.WithContext(ctx).Preload("Booking").Preload("Booking.BookingSeats").First(&payment, id).Error
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
