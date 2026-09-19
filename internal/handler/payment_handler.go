@@ -157,7 +157,7 @@ func (h *PaymentHandler) GetByID(c fiber.Ctx) error {
 	)
 }
 
-func (h *PaymentHandler) confirm(c fiber.Ctx) error {
+func (h *PaymentHandler) Confirm(c fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil || id == 0 {
 		return utils.ResponseError(

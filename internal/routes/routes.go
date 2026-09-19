@@ -7,7 +7,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-func SetupRoutes(app *fiber.App, authHandler *handler.AuthHandler, userHandler *handler.UserHandler, jwtManager *jwt.Manager, genreHandler *handler.GenreHandler, movieHandler *handler.MovieHandler, theaterHandler *handler.TheaterHandler, studioHandler *handler.StudioHandler, seatHandler *handler.SeatHandler, showtimeHandler *handler.ShowtimeHandler, bookingHandler *handler.BookingHandler) {
+func SetupRoutes(app *fiber.App, authHandler *handler.AuthHandler, userHandler *handler.UserHandler, jwtManager *jwt.Manager, genreHandler *handler.GenreHandler, movieHandler *handler.MovieHandler, theaterHandler *handler.TheaterHandler, studioHandler *handler.StudioHandler, seatHandler *handler.SeatHandler, showtimeHandler *handler.ShowtimeHandler, bookingHandler *handler.BookingHandler, paymentHandler *handler.PaymentHandler) {
 	api := app.Group("/api/v1")
 
 	auth := api.Group("/auth")
@@ -65,7 +65,7 @@ func SetupRoutes(app *fiber.App, authHandler *handler.AuthHandler, userHandler *
 	seats.Put("/seats/:id", middleware.Role("admin"), seatHandler.Update)
 	seats.Delete("/seats/:id", middleware.Role("admin"), seatHandler.Delete)
 
-	showtimes := api.Group("showtimes", middleware.Auth(jwtManager))
+	showtimes := api.Group("/showtimes", middleware.Auth(jwtManager))
 	showtimes.Get("/", showtimeHandler.GetAll)
 	showtimes.Get("/:id", showtimeHandler.GetByID)
 
@@ -73,9 +73,14 @@ func SetupRoutes(app *fiber.App, authHandler *handler.AuthHandler, userHandler *
 	showtimes.Put("/:id", middleware.Role("admin"), showtimeHandler.Update)
 	showtimes.Delete("/:id", middleware.Role("admin"), showtimeHandler.Delete)
 
-	bookings := api.Group("bookings", middleware.Auth(jwtManager))
+	bookings := api.Group("/bookings", middleware.Auth(jwtManager))
 	bookings.Post("/", bookingHandler.Create)
 	bookings.Get("/me", bookingHandler.GetMyBookings)
 	bookings.Get("/:id", bookingHandler.GetByID)
 	bookings.Post("/:id/cancel", bookingHandler.CancelBooking)
+
+	payments := api.Group("/payments", middleware.Auth(jwtManager))
+	payments.Post("/", paymentHandler.Create)
+	payments.Get("/:id", paymentHandler.GetByID)
+	payments.Post("/:id/confirm", paymentHandler.Confirm)
 }

@@ -89,6 +89,7 @@ func main() {
 	seatRepo := repository.NewSeatRepository(db)
 	showtimeRepo := repository.NewShowtimeRepository(db)
 	bookingRepo := repository.NewBookingRepository(db)
+	paymentRepo := repository.NewPaymentRepository(db)
 
 	authService := service.NewAuthService(
 		userRepo,
@@ -105,6 +106,7 @@ func main() {
 	showtimeService := service.NewShowtimeService(showtimeRepo, movieRepo, studioRepo)
 	bookingService := service.NewBookingService(bookingRepo, showtimeRepo, seatRepo, db, seatLocker, seatLockTTL)
 	bookingExpiryWorker := worker.NewBookingExpiryWorker(bookingService, 1*time.Minute)
+	paymentService := service.NewPaymentService(paymentRepo, bookingRepo, db, seatLocker)
 
 	authHandler := handler.NewAuthHandler(authService)
 	userHandler := handler.NewUserHandler(userService)
@@ -115,6 +117,7 @@ func main() {
 	seatHandler := handler.NewSeatHandler(seatService)
 	showtimeHandler := handler.NewShowtimeHandler(showtimeService)
 	bookingHandler := handler.NewBookingHandler(bookingService)
+	paymentHandler := handler.NewPaymentHandler(paymentService)
 
 	routes.SetupRoutes(
 		app,
@@ -128,6 +131,7 @@ func main() {
 		seatHandler,
 		showtimeHandler,
 		bookingHandler,
+		paymentHandler,
 	)
 
 	go bookingExpiryWorker.Start(context.Background())
