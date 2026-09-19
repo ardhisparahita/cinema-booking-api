@@ -12,4 +12,5 @@ type BookingService interface {
 	GetBookingByID(ctx context.Context, userID uint, id uint) (*response.BookingResponse, error)
 	GetMyBookings(ctx context.Context, userID uint) ([]response.BookingResponse, error)
 	CancelBooking(ctx context.Context, userID uint, id uint) error
+	ExpireBooking(ctx context.Context) error
 }

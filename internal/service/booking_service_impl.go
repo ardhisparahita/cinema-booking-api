@@ -257,6 +257,36 @@ func (s *BookingServiceImpl) CancelBooking(ctx context.Context, userID uint, id 
 	return nil
 }
 
+func (s *BookingServiceImpl) ExpireBooking(ctx context.Context) error {
+	now := time.Now()
+
+	bookings, err := s.Repo.FindExpiredPendingBookings(ctx, now)
+	if err != nil {
+		return err
+	}
+
+	for _, booking := range bookings {
+		err := s.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			txBookingRepo := repository.NewBookingRepository(tx)
+			if err := txBookingRepo.ExpireBooking(ctx, tx, booking.ID); err != nil {
+				return err
+			}
+
+			if err := txBookingRepo.DeleteBookingSeats(ctx, tx, booking.ID); err != nil {
+				return err
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			return fmt.Errorf("failed to expire booking %d: %w", booking.ID, err)
+		}
+	}
+
+	return nil
+}
+
 func toBookingResponse(booking *models.Booking) *response.BookingResponse {
 	bookingSeats := make([]response.BookingSeatResponse, 0, len(booking.BookingSeats))
 
