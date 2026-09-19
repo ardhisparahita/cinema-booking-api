@@ -224,7 +224,7 @@ func toPaymentResponse(payment *models.Payment) *response.PaymentResponse {
 }
 
 func generateProviderReference() string {
-	buf := make([]byte, 0)
+	buf := make([]byte, 6)
 
 	if _, err := rand.Read(buf); err != nil {
 		return fmt.Sprintf("SIM-%d", time.Now().UnixNano())
