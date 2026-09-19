@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 	"github.com/ardhisparahita/cinema-booking-api/internal/routes"
 	"github.com/ardhisparahita/cinema-booking-api/internal/seeders"
 	"github.com/ardhisparahita/cinema-booking-api/internal/service"
+	"github.com/ardhisparahita/cinema-booking-api/internal/worker"
 	"github.com/ardhisparahita/cinema-booking-api/pkg/config"
 	"github.com/ardhisparahita/cinema-booking-api/pkg/database"
 	"github.com/ardhisparahita/cinema-booking-api/pkg/jwt"
@@ -102,6 +104,7 @@ func main() {
 	seatService := service.NewSeatService(seatRepo, studioRepo)
 	showtimeService := service.NewShowtimeService(showtimeRepo, movieRepo, studioRepo)
 	bookingService := service.NewBookingService(bookingRepo, showtimeRepo, seatRepo, db, seatLocker, seatLockTTL)
+	bookingExpiryWorker := worker.NewBookingExpiryWorker(bookingService, 1*time.Minute)
 
 	authHandler := handler.NewAuthHandler(authService)
 	userHandler := handler.NewUserHandler(userService)
@@ -126,6 +129,8 @@ func main() {
 		showtimeHandler,
 		bookingHandler,
 	)
+
+	go bookingExpiryWorker.Start(context.Background())
 
 	log.Fatal(app.Listen(":3000"))
 }
