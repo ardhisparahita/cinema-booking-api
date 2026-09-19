@@ -87,3 +87,19 @@ func (r *BookingRepositoryImpl) CancelBooking(ctx context.Context, id uint) erro
 func (r *BookingRepositoryImpl) DeleteBookingSeats(ctx context.Context, tx *gorm.DB, bookingID uint) error {
 	return tx.WithContext(ctx).Where("booking_id = ?", bookingID).Delete(&models.BookingSeat{}).Error
 }
+
+func (r *BookingRepositoryImpl) FindExpiredPendingBookings(ctx context.Context, now time.Time) ([]models.Booking, error) {
+	var bookings []models.Booking
+
+	err := r.DB.WithContext(ctx).Where("status = ?", "pending").Where("expires_at IS NOT NULL").Where("expires_at <= ?", now).Find(&bookings).Error
+
+	return bookings, err
+}
+
+func (r *BookingRepositoryImpl) ExpireBooking(ctx context.Context, tx *gorm.DB, bookingID uint) error {
+	result := tx.WithContext(ctx).Model(&models.Booking{}).Where("id = ?", bookingID).Where("status = ?", "pending").Updates(map[string]any{
+		"status": "expired",
+	})
+
+	return result.Error
+}

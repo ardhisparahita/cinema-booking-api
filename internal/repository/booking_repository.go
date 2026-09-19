@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/models"
 	"gorm.io/gorm"
@@ -15,4 +16,6 @@ type BookingRepository interface {
 	FindBookedSeatIDs(ctx context.Context, showtimeID uint, seatIDs []uint) ([]uint, error)
 	CancelBooking(ctx context.Context, id uint) error
 	DeleteBookingSeats(ctx context.Context, tx *gorm.DB, bookingID uint) error
+	FindExpiredPendingBookings(ctx context.Context, now time.Time) ([]models.Booking, error)
+	ExpireBooking(ctx context.Context, tx *gorm.DB, bookingID uint) error
 }
