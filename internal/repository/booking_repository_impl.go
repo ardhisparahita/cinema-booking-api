@@ -99,11 +99,17 @@ func (r *BookingRepositoryImpl) FindExpiredPendingBookings(ctx context.Context, 
 }
 
 func (r *BookingRepositoryImpl) ExpireBooking(ctx context.Context, tx *gorm.DB, bookingID uint) error {
-	result := tx.WithContext(ctx).Model(&models.Booking{}).Where("id = ?", bookingID).Where("status = ?", "pending").Updates(map[string]any{
-		"status": "expired",
-	})
+	result := tx.WithContext(ctx).Model(&models.Booking{}).Where("id = ?", bookingID).Where("status = ?", "pending").Update("status", "expired")
 
-	return result.Error
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return ErrBookingNotPending
+	}
+
+	return nil
 }
 
 func (r *BookingRepositoryImpl) FindBookingByIDForUpdate(ctx context.Context, id uint) (*models.Booking, error) {
