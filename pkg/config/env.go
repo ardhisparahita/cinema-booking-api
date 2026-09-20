@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/joho/godotenv"
 )
@@ -14,8 +15,29 @@ func LoadEnv() {
 }
 
 func LoadEnvTest() {
-	if err := godotenv.Load(".env.test"); err != nil {
-		fmt.Println("No .env.test file found, using environment variable")
+	dir, err := os.Getwd()
+	if err != nil {
+		fmt.Println("unable to get working directory:", err)
+		return
+	}
+	for {
+		envPath := filepath.Join(dir, ".env.test")
+		if _, err := os.Stat(envPath); err == nil {
+			if err := godotenv.Load(envPath); err != nil {
+				fmt.Println("failed to load .env.test:", err)
+			} else {
+				fmt.Println("loaded:", envPath)
+			}
+			return
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			fmt.Println("no .env.test file found, using env variable")
+			return
+		}
+
+		dir = parent
 	}
 }
 
