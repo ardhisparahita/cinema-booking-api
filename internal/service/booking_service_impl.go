@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/request"
@@ -225,33 +226,33 @@ func (s *BookingServiceImpl) CancelBooking(ctx context.Context, userID uint, id 
 		return ErrBookingCannotCancel
 	}
 
+	seatIDs := make([]uint, 0, len(booking.BookingSeats))
+	for _, bookingSeat := range booking.BookingSeats {
+		seatIDs = append(seatIDs, bookingSeat.SeatID)
+	}
+
 	err = s.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		txBookingRepo := repository.NewBookingRepository(tx)
 
 		if err := txBookingRepo.CancelBooking(ctx, id); err != nil {
+			if errors.Is(err, repository.ErrBookingNotPending) {
+				return ErrBookingCannotCancel
+			}
 			return err
 		}
 
 		if err := txBookingRepo.DeleteBookingSeats(ctx, tx, id); err != nil {
 			return err
 		}
-
 		return nil
 	})
+
 	if err != nil {
-		if errors.Is(err, repository.ErrBookingNotFound) {
-			return ErrBookingNotFound
-		}
 		return err
 	}
 
-	seatIDs := make([]uint, 0, len(booking.BookingSeats))
-	for _, bookingSeat := range booking.BookingSeats {
-		seatIDs = append(seatIDs, bookingSeat.SeatID)
-	}
-
 	if err := s.SeatLocker.UnlockSeats(ctx, booking.ShowtimeID, seatIDs, booking.BookingCode); err != nil {
-		return fmt.Errorf("booking cancelled but failed to unlock seats: %w", err)
+		log.Printf("failed to unlock redis seats for booking %s: %v", booking.BookingCode, err)
 	}
 
 	return nil
