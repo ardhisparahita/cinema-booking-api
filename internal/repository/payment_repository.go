@@ -12,4 +12,5 @@ type PaymentRepository interface {
 	FindPaymentByID(ctx context.Context, id uint) (*models.Payment, error)
 	FindPaymentByBookingID(ctx context.Context, bookingID uint) (*models.Payment, error)
 	UpdatePayment(ctx context.Context, tx *gorm.DB, payment *models.Payment) error
+	FindPaymentByIDForUpdate(ctx context.Context, id uint) (*models.Payment, error)
 }

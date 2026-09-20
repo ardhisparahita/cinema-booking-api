@@ -6,6 +6,7 @@ import (
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var (
@@ -68,6 +69,20 @@ func (r *PaymentRepositoryImpl) UpdatePayment(ctx context.Context, tx *gorm.DB, 
 	if result.RowsAffected == 0 {
 		return gorm.ErrRecordNotFound
 	}
-
 	return nil
+}
+
+func (r *PaymentRepositoryImpl) FindPaymentByIDForUpdate(ctx context.Context, id uint) (*models.Payment, error) {
+	var payment models.Payment
+
+	err := r.DB.WithContext(ctx).Clauses(clause.Locking{Strength: "UPDATE"}).First(&payment, id).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrPaymentNotFound
+		}
+		return nil, err
+	}
+
+	return &payment, nil
 }
