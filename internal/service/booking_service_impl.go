@@ -266,6 +266,8 @@ func (s *BookingServiceImpl) ExpireBooking(ctx context.Context) error {
 		return err
 	}
 
+	var firstError error
+
 	for _, booking := range bookings {
 		err := s.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 			txBookingRepo := repository.NewBookingRepository(tx)
@@ -281,11 +283,26 @@ func (s *BookingServiceImpl) ExpireBooking(ctx context.Context) error {
 		})
 
 		if err != nil {
-			return fmt.Errorf("failed to expire booking %d: %w", booking.ID, err)
+			if errors.Is(err, repository.ErrBookingNotFound) {
+				continue
+			}
+			if firstError == nil {
+				firstError = fmt.Errorf("failed to expire booking %d: %w", booking.ID, err)
+			}
+			continue
+		}
+
+		seatIDs := make([]uint, 0, len(booking.BookingSeats))
+		for _, bookingSeat := range booking.BookingSeats {
+			seatIDs = append(seatIDs, bookingSeat.SeatID)
+		}
+
+		if err := s.SeatLocker.UnlockSeats(ctx, booking.ShowtimeID, seatIDs, booking.BookingCode); err != nil {
+			log.Printf("failed to unlock redis seats for expired booking %s: %v", booking.BookingCode, err)
 		}
 	}
 
-	return nil
+	return firstError
 }
 
 func toBookingResponse(booking *models.Booking) *response.BookingResponse {
