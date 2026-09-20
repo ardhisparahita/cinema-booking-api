@@ -55,6 +55,10 @@ func (s *PaymentServiceImpl) CreatePayment(ctx context.Context, userID uint, req
 		return nil, ErrPaymentBookingNotFound
 	}
 
+	if booking.Status == "expired" {
+		return nil, ErrPaymentBookingExpired
+	}
+
 	if booking.Status != "pending" {
 		return nil, ErrPaymentBookingNotPending
 	}
