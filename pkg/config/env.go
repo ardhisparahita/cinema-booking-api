@@ -13,6 +13,12 @@ func LoadEnv() {
 	}
 }
 
+func LoadEnvTest() {
+	if err := godotenv.Load(".env.test"); err != nil {
+		fmt.Println("No .env.test file found, using environment variable")
+	}
+}
+
 func Get(key string) string {
 	return os.Getenv(key)
 }
