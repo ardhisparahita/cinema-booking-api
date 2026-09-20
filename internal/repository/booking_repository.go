@@ -18,4 +18,6 @@ type BookingRepository interface {
 	DeleteBookingSeats(ctx context.Context, tx *gorm.DB, bookingID uint) error
 	FindExpiredPendingBookings(ctx context.Context, now time.Time) ([]models.Booking, error)
 	ExpireBooking(ctx context.Context, tx *gorm.DB, bookingID uint) error
+	FindBookingByIDForUpdate(ctx context.Context, id uint) (*models.Booking, error)
+	ConfirmBooking(ctx context.Context, id uint) error
 }

@@ -7,10 +7,12 @@ import (
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var (
-	ErrBookingNotFound = errors.New("booking not found")
+	ErrBookingNotFound   = errors.New("booking not found")
+	ErrBookingNotPending = errors.New("booking is not pending")
 )
 
 type BookingRepositoryImpl struct {
@@ -102,4 +104,33 @@ func (r *BookingRepositoryImpl) ExpireBooking(ctx context.Context, tx *gorm.DB, 
 	})
 
 	return result.Error
+}
+
+func (r *BookingRepositoryImpl) FindBookingByIDForUpdate(ctx context.Context, id uint) (*models.Booking, error) {
+	var booking models.Booking
+
+	err := r.DB.WithContext(ctx).Clauses(clause.Locking{Strength: "UPDATE"}).Preload("BookingSeats").Preload("BookingSeats.Seat").First(&booking, id).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrBookingNotFound
+		}
+		return nil, err
+	}
+
+	return &booking, nil
+}
+
+func (r *BookingRepositoryImpl) ConfirmBooking(ctx context.Context, id uint) error {
+	result := r.DB.WithContext(ctx).Model(&models.Booking{}).Where("id = ?", id).Where("status = ?", "pending").Update("status", "confirmed")
+
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return ErrBookingNotPending
+	}
+
+	return nil
 }
