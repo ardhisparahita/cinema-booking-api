@@ -44,12 +44,14 @@ func (r *PaymentRepositoryImpl) FindPaymentByID(ctx context.Context, id uint) (*
 func (r *PaymentRepositoryImpl) FindPaymentByBookingID(ctx context.Context, bookingID uint) (*models.Payment, error) {
 	var payment models.Payment
 
-	err := r.DB.WithContext(ctx).Where("booking_id = ?", bookingID).First(&payment).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrPaymentNotFound
-		}
-		return nil, err
+	result := r.DB.WithContext(ctx).Where("booking_id = ?", bookingID).Limit(1).Find(&payment)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return nil, ErrPaymentNotFound
 	}
 
 	return &payment, nil
