@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/request"
@@ -24,6 +25,7 @@ var (
 	ErrPaymentAlreadyExist      = errors.New("payment already exist")
 	ErrPaymentAlreadyPaid       = errors.New("payment already paid")
 	ErrInvalidPaymentMethod     = errors.New("invalid payment method")
+	ErrPaymentCannotConfirm     = errors.New("payment cannot be confirmed")
 )
 
 type PaymentServiceImpl struct {
@@ -127,7 +129,7 @@ func (s *PaymentServiceImpl) GetPaymentByID(ctx context.Context, userID uint, id
 }
 
 func (s *PaymentServiceImpl) ConfirmPayment(ctx context.Context, userID uint, id uint) (*response.PaymentResponse, error) {
-	payment, err := s.Repo.FindPaymentByID(ctx, id)
+	paymentSnapshot, err := s.Repo.FindPaymentByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, repository.ErrPaymentNotFound) {
 			return nil, ErrPaymentNotFound
@@ -135,63 +137,81 @@ func (s *PaymentServiceImpl) ConfirmPayment(ctx context.Context, userID uint, id
 		return nil, err
 	}
 
-	if payment.Booking.UserID != userID {
-		return nil, ErrPaymentNotFound
-	}
-
-	if payment.Status == "paid" {
-		return nil, ErrPaymentAlreadyPaid
-	}
-
-	if payment.Booking.Status != "pending" {
-		return nil, ErrPaymentBookingNotPending
-	}
-
-	if payment.Booking.ExpiresAt == nil || !payment.Booking.ExpiresAt.After(time.Now()) {
-		return nil, ErrPaymentBookingExpired
-	}
-
-	now := time.Now()
-
-	payment.Status = "paid"
-	payment.ProviderRef = generateProviderReference()
-	payment.PaidAt = &now
+	var payment *models.Payment
+	var bookingCode string
+	var showTimeID uint
+	var seatIDs []uint
 
 	err = s.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txBookingRepo := repository.NewBookingRepository(tx)
 		txPaymentRepo := repository.NewPaymentRepository(tx)
 
-		if err := txPaymentRepo.UpdatePayment(ctx, tx, payment); err != nil {
+		booking, err := txBookingRepo.FindBookingByIDForUpdate(ctx, paymentSnapshot.ID)
+		if err != nil {
+			return ErrPaymentBookingNotFound
+		}
+
+		lockedPayment, err := txPaymentRepo.FindPaymentByIDForUpdate(ctx, id)
+		if err != nil {
+			return ErrPaymentNotFound
+		}
+
+		if booking.UserID != userID {
+			return ErrPaymentNotFound
+		}
+
+		if booking.Status == "paid" {
+			return ErrPaymentAlreadyPaid
+		}
+
+		if booking.Status == "expired" {
+			return ErrPaymentBookingExpired
+		}
+
+		if booking.Status != "pending" {
+			return ErrPaymentBookingNotPending
+		}
+
+		if booking.ExpiresAt == nil || !booking.ExpiresAt.After(time.Now()) {
+			return ErrPaymentBookingExpired
+		}
+
+		if lockedPayment.Status != "pending" {
+			return ErrPaymentCannotConfirm
+		}
+
+		now := time.Now()
+
+		payment.Status = "paid"
+		payment.ProviderRef = generateProviderReference()
+		payment.PaidAt = &now
+
+		if err := txPaymentRepo.UpdatePayment(ctx, tx, lockedPayment); err != nil {
 			return err
 		}
 
-		result := tx.WithContext(ctx).Model(&models.Booking{}).Where("id = ?", payment.BookingID).Where("status = ?", "pending").Update("status", "confirmed")
-
-		if result.Error != nil {
-			return result.Error
+		if err := txBookingRepo.ConfirmBooking(ctx, booking.ID); err != nil {
+			return err
 		}
 
-		if result.RowsAffected == 0 {
-			return ErrPaymentBookingNotPending
+		payment = lockedPayment
+		bookingCode = booking.BookingCode
+
+		seatIDs = make([]uint, len(booking.BookingSeats))
+
+		for _, bookingSeat := range booking.BookingSeats {
+			seatIDs = append(seatIDs, bookingSeat.SeatID)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrPaymentAlreadyPaid
-		}
 		return nil, err
 	}
 
-	seatIDs := make([]uint, 0, len(payment.Booking.BookingSeats))
-
-	for _, bookingSeat := range payment.Booking.BookingSeats {
-		seatIDs = append(seatIDs, bookingSeat.SeatID)
-	}
-
-	if err := s.SeatLocker.UnlockSeats(ctx, payment.Booking.ShowtimeID, seatIDs, payment.Booking.BookingCode); err != nil {
-		return nil, fmt.Errorf("payment confirmed but failed to unlock seats: %w", err)
+	if err := s.SeatLocker.UnlockSeats(ctx, showTimeID, seatIDs, bookingCode); err != nil {
+		log.Printf("failed to unlock seats after payment %d: %v", id, err)
 	}
 
 	return toPaymentResponse(payment), nil
