@@ -43,64 +43,67 @@ func NewPaymentService(repo repository.PaymentRepository, bookingRepo repository
 }
 
 func (s *PaymentServiceImpl) CreatePayment(ctx context.Context, userID uint, req request.CreatePaymentRequest) (*response.PaymentResponse, error) {
-	booking, err := s.BookingRepo.FindBookingByID(ctx, req.BookingID)
-	if err != nil {
-		if errors.Is(err, repository.ErrBookingNotFound) {
-			return nil, ErrBookingNotFound
-		}
-		return nil, err
-	}
-
-	if booking.UserID != userID {
-		return nil, ErrPaymentBookingNotFound
-	}
-
-	if booking.Status == "expired" {
-		return nil, ErrPaymentBookingExpired
-	}
-
-	if booking.Status != "pending" {
-		return nil, ErrPaymentBookingNotPending
-	}
-
-	if booking.ExpiresAt == nil || !booking.ExpiresAt.After(time.Now()) {
-		return nil, ErrPaymentBookingExpired
-	}
 
 	if !isValidPaymentMethod(req.Method) {
 		return nil, ErrInvalidPaymentMethod
 	}
 
-	existingPayment, err := s.Repo.FindPaymentByBookingID(ctx, req.BookingID)
-	if err == nil && existingPayment != nil {
-		return nil, ErrPaymentAlreadyExist
-	}
+	var payment *models.Payment
 
-	if err != nil && !errors.Is(err, repository.ErrPaymentNotFound) {
-		return nil, err
-	}
-
-	payment := &models.Payment{
-		BookingID: booking.ID,
-		Method:    req.Method,
-		Amount:    booking.TotalPrice,
-		Status:    "pending",
-	}
-
-	err = s.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := s.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txBookingRepo := repository.NewBookingRepository(tx)
 		txPaymentRepo := repository.NewPaymentRepository(tx)
 
+		booking, err := txBookingRepo.FindBookingByIDForUpdate(ctx, req.BookingID)
+		if err != nil {
+			if errors.Is(err, repository.ErrBookingNotFound) {
+				return ErrPaymentBookingNotFound
+			}
+			return err
+		}
+
+		if booking.UserID != userID {
+			return ErrPaymentBookingNotFound
+		}
+
+		if booking.Status == "expired" {
+			return ErrPaymentBookingExpired
+		}
+
+		if booking.Status != "pending" {
+			return ErrPaymentBookingNotPending
+		}
+
+		if booking.ExpiresAt == nil || !booking.ExpiresAt.After(time.Now()) {
+			return ErrPaymentBookingExpired
+		}
+
+		existingPayment, err := s.Repo.FindPaymentByBookingID(ctx, booking.ID)
+		if err == nil && existingPayment != nil {
+			return ErrPaymentAlreadyExist
+		}
+
+		if err != nil && !errors.Is(err, repository.ErrPaymentNotFound) {
+			return err
+		}
+
+		payment := &models.Payment{
+			BookingID: booking.ID,
+			Method:    req.Method,
+			Amount:    booking.TotalPrice,
+			Status:    "pending",
+		}
+
 		if err := txPaymentRepo.CreatePayment(ctx, tx, payment); err != nil {
+			if isDuplicatePaymentError(err) {
+				return ErrPaymentAlreadyExist
+			}
 			return err
 		}
 		return nil
 	})
 
 	if err != nil {
-		if isDuplicatePaymentError(err) {
-			return nil, ErrPaymentAlreadyExist
-		}
-
 		return nil, err
 	}
 
