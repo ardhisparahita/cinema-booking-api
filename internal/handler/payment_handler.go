@@ -90,6 +90,13 @@ func (h *PaymentHandler) Create(c fiber.Ctx) error {
 				"invalid payment method",
 				err,
 			)
+		case errors.Is(err, service.ErrPaymentCannotConfirm):
+			return utils.ResponseError(
+				c,
+				fiber.StatusConflict,
+				"payment cannot be confirmed",
+				err,
+			)
 		default:
 			return utils.ResponseError(
 				c,
