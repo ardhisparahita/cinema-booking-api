@@ -28,3 +28,8 @@ var (
 	ErrInvalidShowtimePrice  = errors.New("price must be greater than zero")
 	ErrInvalidShowtimeInPast = errors.New("showtime cannot be in the past")
 )
+
+var (
+	ErrMovieNotFound      = errors.New("movie not found")
+	ErrInvalidMovieRating = errors.New("invalid movie rating")
+)
