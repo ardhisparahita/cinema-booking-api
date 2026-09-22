@@ -38,3 +38,9 @@ var (
 	ErrGenreNotFound      = errors.New("one or more genre not found")
 	ErrGenreAlreadyExists = errors.New("genre already exists")
 )
+
+var (
+	ErrStudioNotFound      = errors.New("studio not found")
+	ErrStudioAlreadyExists = errors.New("studio already exists")
+	ErrTheaterNotFound     = errors.New("theater not found")
+)
