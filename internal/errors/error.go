@@ -33,3 +33,8 @@ var (
 	ErrMovieNotFound      = errors.New("movie not found")
 	ErrInvalidMovieRating = errors.New("invalid movie rating")
 )
+
+var (
+	ErrGenreNotFound      = errors.New("one or more genre not found")
+	ErrGenreAlreadyExists = errors.New("genre already exists")
+)
