@@ -210,29 +210,36 @@ func (s *BookingServiceImpl) GetMyBookings(ctx context.Context, userID uint) ([]
 }
 
 func (s *BookingServiceImpl) CancelBooking(ctx context.Context, userID uint, id uint) error {
-	booking, err := s.Repo.FindBookingByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, repository.ErrBookingNotFound) {
+	var (
+		showtimeID  uint
+		bookingCode string
+		seatIDs     []uint
+	)
+	err := s.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txBookingRepo := repository.NewBookingRepository(tx)
+		booking, err := txBookingRepo.FindBookingByIDForUpdate(ctx, id)
+		if err != nil {
+			if errors.Is(err, repository.ErrBookingNotFound) {
+				return ErrBookingNotFound
+			}
+			return err
+		}
+
+		if booking.UserID != userID {
 			return ErrBookingNotFound
 		}
-		return err
-	}
 
-	if booking.UserID != userID {
-		return ErrBookingNotFound
-	}
+		if booking.Status != "pending" {
+			return ErrBookingCannotCancel
+		}
 
-	if booking.Status != "pending" {
-		return ErrBookingCannotCancel
-	}
+		showtimeID = booking.ShowtimeID
+		bookingCode = booking.BookingCode
 
-	seatIDs := make([]uint, 0, len(booking.BookingSeats))
-	for _, bookingSeat := range booking.BookingSeats {
-		seatIDs = append(seatIDs, bookingSeat.SeatID)
-	}
-
-	err = s.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		txBookingRepo := repository.NewBookingRepository(tx)
+		seatIDs = make([]uint, 0, len(booking.BookingSeats))
+		for _, bookingSeat := range booking.BookingSeats {
+			seatIDs = append(seatIDs, bookingSeat.SeatID)
+		}
 
 		if err := txBookingRepo.CancelBooking(ctx, id); err != nil {
 			if errors.Is(err, repository.ErrBookingNotPending) {
@@ -244,6 +251,7 @@ func (s *BookingServiceImpl) CancelBooking(ctx context.Context, userID uint, id 
 		if err := txBookingRepo.DeleteBookingSeats(ctx, tx, id); err != nil {
 			return err
 		}
+
 		return nil
 	})
 
@@ -251,11 +259,21 @@ func (s *BookingServiceImpl) CancelBooking(ctx context.Context, userID uint, id 
 		return err
 	}
 
-	if err := s.SeatLocker.UnlockSeats(ctx, booking.ShowtimeID, seatIDs, booking.BookingCode); err != nil {
-		log.Printf("failed to unlock redis seats for booking %s: %v", booking.BookingCode, err)
+	if err := s.SeatLocker.UnlockSeats(
+		ctx,
+		showtimeID,
+		seatIDs,
+		bookingCode,
+	); err != nil {
+		log.Printf(
+			"failed to unlock redis seats for booking %s: %v",
+			bookingCode,
+			err,
+		)
 	}
 
 	return nil
+
 }
 
 func (s *BookingServiceImpl) ExpireBooking(ctx context.Context) error {

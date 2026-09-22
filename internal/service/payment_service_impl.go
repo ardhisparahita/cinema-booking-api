@@ -89,7 +89,7 @@ func (s *PaymentServiceImpl) CreatePayment(ctx context.Context, userID uint, req
 			return err
 		}
 
-		payment := &models.Payment{
+		payment = &models.Payment{
 			BookingID: booking.ID,
 			Method:    req.Method,
 			Amount:    booking.TotalPrice,
@@ -128,7 +128,11 @@ func (s *PaymentServiceImpl) GetPaymentByID(ctx context.Context, userID uint, id
 	return toPaymentResponse(payment), nil
 }
 
-func (s *PaymentServiceImpl) ConfirmPayment(ctx context.Context, userID uint, id uint) (*response.PaymentResponse, error) {
+func (s *PaymentServiceImpl) ConfirmPayment(
+	ctx context.Context,
+	userID uint,
+	id uint,
+) (*response.PaymentResponse, error) {
 	paymentSnapshot, err := s.Repo.FindPaymentByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, repository.ErrPaymentNotFound) {
@@ -137,31 +141,38 @@ func (s *PaymentServiceImpl) ConfirmPayment(ctx context.Context, userID uint, id
 		return nil, err
 	}
 
-	var payment *models.Payment
-	var bookingCode string
-	var showTimeID uint
-	var seatIDs []uint
+	var (
+		payment     *models.Payment
+		bookingCode string
+		showTimeID  uint
+		seatIDs     []uint
+	)
 
 	err = s.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		txBookingRepo := repository.NewBookingRepository(tx)
 		txPaymentRepo := repository.NewPaymentRepository(tx)
 
-		booking, err := txBookingRepo.FindBookingByIDForUpdate(ctx, paymentSnapshot.ID)
+		booking, err := txBookingRepo.FindBookingByIDForUpdate(
+			ctx,
+			paymentSnapshot.BookingID,
+		)
 		if err != nil {
-			return ErrPaymentBookingNotFound
+			if errors.Is(err, repository.ErrBookingNotFound) {
+				return ErrPaymentBookingNotFound
+			}
+			return err
 		}
 
 		lockedPayment, err := txPaymentRepo.FindPaymentByIDForUpdate(ctx, id)
 		if err != nil {
-			return ErrPaymentNotFound
+			if errors.Is(err, repository.ErrPaymentNotFound) {
+				return ErrPaymentNotFound
+			}
+			return err
 		}
 
 		if booking.UserID != userID {
 			return ErrPaymentNotFound
-		}
-
-		if booking.Status == "paid" {
-			return ErrPaymentAlreadyPaid
 		}
 
 		if booking.Status == "expired" {
@@ -172,7 +183,8 @@ func (s *PaymentServiceImpl) ConfirmPayment(ctx context.Context, userID uint, id
 			return ErrPaymentBookingNotPending
 		}
 
-		if booking.ExpiresAt == nil || !booking.ExpiresAt.After(time.Now()) {
+		if booking.ExpiresAt == nil ||
+			!booking.ExpiresAt.After(time.Now()) {
 			return ErrPaymentBookingExpired
 		}
 
@@ -182,22 +194,30 @@ func (s *PaymentServiceImpl) ConfirmPayment(ctx context.Context, userID uint, id
 
 		now := time.Now()
 
-		payment.Status = "paid"
-		payment.ProviderRef = generateProviderReference()
-		payment.PaidAt = &now
+		lockedPayment.Status = "paid"
+		lockedPayment.ProviderRef = generateProviderReference()
+		lockedPayment.PaidAt = &now
 
-		if err := txPaymentRepo.UpdatePayment(ctx, tx, lockedPayment); err != nil {
+		if err := txPaymentRepo.UpdatePayment(
+			ctx,
+			tx,
+			lockedPayment,
+		); err != nil {
 			return err
 		}
 
-		if err := txBookingRepo.ConfirmBooking(ctx, booking.ID); err != nil {
+		if err := txBookingRepo.ConfirmBooking(
+			ctx,
+			booking.ID,
+		); err != nil {
 			return err
 		}
 
 		payment = lockedPayment
 		bookingCode = booking.BookingCode
+		showTimeID = booking.ShowtimeID
 
-		seatIDs = make([]uint, len(booking.BookingSeats))
+		seatIDs = make([]uint, 0, len(booking.BookingSeats))
 
 		for _, bookingSeat := range booking.BookingSeats {
 			seatIDs = append(seatIDs, bookingSeat.SeatID)
@@ -210,11 +230,21 @@ func (s *PaymentServiceImpl) ConfirmPayment(ctx context.Context, userID uint, id
 		return nil, err
 	}
 
-	if err := s.SeatLocker.UnlockSeats(ctx, showTimeID, seatIDs, bookingCode); err != nil {
-		log.Printf("failed to unlock seats after payment %d: %v", id, err)
+	if err := s.SeatLocker.UnlockSeats(
+		ctx,
+		showTimeID,
+		seatIDs,
+		bookingCode,
+	); err != nil {
+		log.Printf(
+			"failed to unlock seats after payment %d: %v",
+			id,
+			err,
+		)
 	}
 
 	return toPaymentResponse(payment), nil
+
 }
 
 func isValidPaymentMethod(method string) bool {
