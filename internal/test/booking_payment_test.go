@@ -729,5 +729,262 @@ func TestConcurrentCreatePayment(t *testing.T) {
 	if paymentCount != 1 {
 		t.Fatalf("expected exactly 1 payment, got: %d", paymentCount)
 	}
+}
 
+func TestConcurrentCancelAndConfirmPayment(t *testing.T) {
+	deps := SetupTestDependencies(t)
+	data := createBookingTestData(t, deps.DB)
+	ctx := context.Background()
+
+	bookingReq := request.CreateBookingRequest{
+		ShowtimeID: data.Showtime.ID,
+		SeatIDs:    []uint{data.Seats[0].ID},
+	}
+
+	booking, err := deps.BookingService.CreateBooking(
+		ctx,
+		data.User.ID,
+		bookingReq,
+	)
+	if err != nil {
+		t.Fatalf("failed to create booking: %v", err)
+	}
+
+	if booking.Status != "pending" {
+		t.Fatalf(
+			"expected booking status pending, got %s",
+			booking.Status,
+		)
+	}
+
+	paymentReq := request.CreatePaymentRequest{
+		BookingID: booking.ID,
+		Method:    "qris",
+	}
+
+	payment, err := deps.PaymentService.CreatePayment(
+		ctx,
+		data.User.ID,
+		paymentReq,
+	)
+	if err != nil {
+		t.Fatalf("failed to create payment: %v", err)
+	}
+
+	if payment.Status != "pending" {
+		t.Fatalf(
+			"expected payment status pending, got %s",
+			payment.Status,
+		)
+	}
+
+	seatLockKey := fmt.Sprintf(
+		"booking:showtime:%d:seat:%d",
+		data.Showtime.ID,
+		data.Seats[0].ID,
+	)
+
+	exists, err := deps.RedisClient.Exists(ctx, seatLockKey).Result()
+	if err != nil {
+		t.Fatalf("failed checking redis lock: %v", err)
+	}
+
+	if exists != 1 {
+		t.Fatal("expected redis seat lock to exist")
+	}
+
+	type CancelResult struct {
+		Err error
+	}
+
+	type ConfirmResult struct {
+		Payment *response.PaymentResponse
+		Err     error
+	}
+
+	cancelResults := make(chan CancelResult, 1)
+	confirmResults := make(chan ConfirmResult, 1)
+
+	start := make(chan struct{})
+
+	go func() {
+		<-start
+
+		err := deps.BookingService.CancelBooking(
+			ctx,
+			data.User.ID,
+			booking.ID,
+		)
+
+		cancelResults <- CancelResult{
+			Err: err,
+		}
+	}()
+
+	go func() {
+		<-start
+
+		confirmedPayment, err := deps.PaymentService.ConfirmPayment(
+			ctx,
+			data.User.ID,
+			payment.ID,
+		)
+
+		confirmResults <- ConfirmResult{
+			Payment: confirmedPayment,
+			Err:     err,
+		}
+	}()
+
+	close(start)
+
+	cancelResult := <-cancelResults
+	confirmResult := <-confirmResults
+
+	cancelSuccess := cancelResult.Err == nil
+	confirmSuccess := confirmResult.Err == nil
+
+	successCount := 0
+
+	if cancelSuccess {
+		successCount++
+	}
+
+	if confirmSuccess {
+		successCount++
+	}
+
+	if successCount != 1 {
+		t.Fatalf(
+			"expected exactly one successful operation, "+
+				"cancel_success=%v confirm_success=%v "+
+				"cancel_err=%v confirm_err=%v",
+			cancelSuccess,
+			confirmSuccess,
+			cancelResult.Err,
+			confirmResult.Err,
+		)
+	}
+
+	if !cancelSuccess {
+		if !errors.Is(
+			cancelResult.Err,
+			service.ErrBookingCannotCancel,
+		) {
+			t.Fatalf(
+				"unexpected cancel error: %v",
+				cancelResult.Err,
+			)
+		}
+	}
+
+	if !confirmSuccess {
+		if !errors.Is(
+			confirmResult.Err,
+			service.ErrPaymentBookingNotPending,
+		) &&
+			!errors.Is(
+				confirmResult.Err,
+				service.ErrPaymentBookingExpired,
+			) {
+			t.Fatalf(
+				"unexpected confirm error: %v",
+				confirmResult.Err,
+			)
+		}
+	}
+
+	finalBooking, err := deps.BookingRepo.FindBookingByID(
+		ctx,
+		booking.ID,
+	)
+	if err != nil {
+		t.Fatalf(
+			"failed to get final booking: %v",
+			err,
+		)
+	}
+
+	finalPayment, err := deps.PaymentRepo.FindPaymentByID(
+		ctx,
+		payment.ID,
+	)
+	if err != nil {
+		t.Fatalf(
+			"failed to get final payment: %v",
+			err,
+		)
+	}
+
+	var seatCount int64
+
+	err = deps.DB.Model(&models.BookingSeat{}).
+		Where("booking_id = ?", booking.ID).
+		Count(&seatCount).
+		Error
+
+	if err != nil {
+		t.Fatalf(
+			"failed to count booking seats: %v",
+			err,
+		)
+	}
+
+	switch {
+	case cancelSuccess:
+		if finalBooking.Status != "cancelled" {
+			t.Fatalf(
+				"expected booking status cancelled, got %s",
+				finalBooking.Status,
+			)
+		}
+
+		if finalPayment.Status != "pending" {
+			t.Fatalf(
+				"expected payment status pending, got %s",
+				finalPayment.Status,
+			)
+		}
+
+		if seatCount != 0 {
+			t.Fatalf(
+				"expected booking seats to be deleted, got %d",
+				seatCount,
+			)
+		}
+
+	case confirmSuccess:
+		if finalBooking.Status != "confirmed" {
+			t.Fatalf(
+				"expected booking status confirmed, got %s",
+				finalBooking.Status,
+			)
+		}
+
+		if finalPayment.Status != "paid" {
+			t.Fatalf(
+				"expected payment status paid, got %s",
+				finalPayment.Status,
+			)
+		}
+
+		if seatCount != 1 {
+			t.Fatalf(
+				"expected booking seat to remain, got %d",
+				seatCount,
+			)
+		}
+	}
+
+	exists, err = deps.RedisClient.Exists(ctx, seatLockKey).Result()
+	if err != nil {
+		t.Fatalf(
+			"failed checking redis lock after concurrent operation: %v",
+			err,
+		)
+	}
+
+	if exists != 0 {
+		t.Fatal("redis seat lock still exists after operation")
+	}
 }
