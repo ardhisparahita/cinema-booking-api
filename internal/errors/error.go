@@ -59,3 +59,11 @@ var (
 	ErrSeatOutsideStudioLayout = errors.New("seat position is outside studio layout")
 	ErrSeatLocked              = errors.New("one or more seats are currently locked")
 )
+
+var (
+	ErrPaymentNotFound      = errors.New("payment not found")
+	ErrPaymentAlreadyExists = errors.New("payment already exists")
+	ErrPaymentAlreadyPaid   = errors.New("payment already paid")
+	ErrPaymentCannotConfirm = errors.New("payment cannot be confirmed")
+	ErrInvalidPaymentMethod = errors.New("invalid payment method")
+)
