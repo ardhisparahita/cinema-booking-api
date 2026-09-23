@@ -15,6 +15,8 @@ import (
 	"github.com/ardhisparahita/cinema-booking-api/internal/repository"
 	"github.com/ardhisparahita/cinema-booking-api/pkg/jwt"
 	"golang.org/x/crypto/bcrypt"
+
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 )
 
 type AuthServiceImpl struct {
@@ -70,13 +72,13 @@ func (s *AuthServiceImpl) Login(ctx context.Context, req request.LoginRequest) (
 	user, err := s.repo.FindUserByEmail(ctx, req.Email)
 	if err != nil {
 		if errors.Is(err, repository.ErrUserNotFound) {
-			return nil, errors.New("invalid email or password")
+			return nil, appErrors.ErrInvalidCredentials
 		}
 		return nil, err
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-		return nil, errors.New("invalid email or password")
+		return nil, appErrors.ErrInvalidCredentials
 	}
 
 	return s.issueAuthResponse(ctx, user)
@@ -84,7 +86,7 @@ func (s *AuthServiceImpl) Login(ctx context.Context, req request.LoginRequest) (
 
 func (s *AuthServiceImpl) Refresh(ctx context.Context, rawRefreshToken string) (*response.TokenResponse, error) {
 	if rawRefreshToken == "" {
-		return nil, errors.New("invalid token")
+		return nil, appErrors.ErrInvalidToken
 	}
 
 	tokenHash := hashToken(rawRefreshToken)
@@ -131,7 +133,7 @@ func (s *AuthServiceImpl) Refresh(ctx context.Context, rawRefreshToken string) (
 
 func (s *AuthServiceImpl) Logout(ctx context.Context, rawRefreshToken string) error {
 	if rawRefreshToken == "" {
-		return errors.New("invalid token input")
+		return appErrors.ErrInvalidTokenInput
 	}
 
 	return s.repo.RevokeRefreshToken(ctx, hashToken(rawRefreshToken), time.Now())
