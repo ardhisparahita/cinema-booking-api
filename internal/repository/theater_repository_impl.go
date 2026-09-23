@@ -25,7 +25,6 @@ func (r *TheaterRepositoryImpl) CreateTheater(ctx context.Context, theater *mode
 
 func (r *TheaterRepositoryImpl) FindAllTheater(ctx context.Context, page, limit int) ([]models.Theater, int64, error) {
 	var theaters []models.Theater
-
 	var total int64
 
 	query := r.DB.WithContext(ctx).Model(&models.Theater{})

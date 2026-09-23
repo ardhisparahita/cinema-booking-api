@@ -9,7 +9,7 @@ import (
 
 type ShowtimeService interface {
 	CreateShowtime(ctx context.Context, req request.CreateAndUpdateShowtimeRequest) (*response.ShowtimeResponse, error)
-	GetAllShowtimes(ctx context.Context) ([]response.ShowtimeResponse, error)
+	GetAllShowtimes(ctx context.Context, page, limit int) ([]response.ShowtimeResponse, int64, error)
 	GetShowtimeByID(ctx context.Context, id uint) (*response.ShowtimeResponse, error)
 	UpdateShowtime(ctx context.Context, id uint, req request.CreateAndUpdateShowtimeRequest) (*response.ShowtimeResponse, error)
 	DeleteShowtime(ctx context.Context, id uint) error

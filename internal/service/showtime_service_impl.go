@@ -77,10 +77,10 @@ func (s *ShowtimeServiceImpl) CreateShowtime(ctx context.Context, req request.Cr
 	return toShowtimeResponse(showtime), nil
 }
 
-func (s *ShowtimeServiceImpl) GetAllShowtimes(ctx context.Context) ([]response.ShowtimeResponse, error) {
-	showtimes, err := s.Repo.FindAllShowtimes(ctx)
+func (s *ShowtimeServiceImpl) GetAllShowtimes(ctx context.Context, page, limit int) ([]response.ShowtimeResponse, int64, error) {
+	showtimes, total, err := s.Repo.FindAllShowtimes(ctx, page, limit)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	result := make([]response.ShowtimeResponse, 0, len(showtimes))
@@ -89,7 +89,7 @@ func (s *ShowtimeServiceImpl) GetAllShowtimes(ctx context.Context) ([]response.S
 		result = append(result, *toShowtimeResponse(&showtime))
 	}
 
-	return result, nil
+	return result, total, nil
 }
 
 func (s *ShowtimeServiceImpl) GetShowtimeByID(ctx context.Context, id uint) (*response.ShowtimeResponse, error) {

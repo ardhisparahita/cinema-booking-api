@@ -24,12 +24,20 @@ func (r *ShowtimeRepositoryImpl) CreateShowtime(ctx context.Context, showtime *m
 	return r.DB.WithContext(ctx).Create(showtime).Error
 }
 
-func (r *ShowtimeRepositoryImpl) FindAllShowtimes(ctx context.Context) ([]models.Showtime, error) {
+func (r *ShowtimeRepositoryImpl) FindAllShowtimes(ctx context.Context, page, limit int) ([]models.Showtime, int64, error) {
 	var showtimes []models.Showtime
+	var total int64
 
-	err := r.DB.WithContext(ctx).Order("start_time ASC").Find(&showtimes).Error
+	query := r.DB.WithContext(ctx).Model(&models.Showtime{})
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
 
-	return showtimes, err
+	offset := (page - 1) * limit
+
+	err := r.DB.WithContext(ctx).Order("start_time ASC").Limit(limit).Offset(offset).Find(&showtimes).Error
+
+	return showtimes, total, err
 }
 
 func (r *ShowtimeRepositoryImpl) FindShowtimeByID(ctx context.Context, id uint) (*models.Showtime, error) {
