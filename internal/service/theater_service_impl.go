@@ -7,12 +7,9 @@ import (
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/request"
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/response"
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/models"
 	"github.com/ardhisparahita/cinema-booking-api/internal/repository"
-)
-
-var (
-	ErrTheaterNotFound = errors.New("theater not found")
 )
 
 type TheaterServiceImpl struct {
@@ -57,8 +54,8 @@ func (s *TheaterServiceImpl) GetAllTheaters(ctx context.Context) ([]response.The
 func (s *TheaterServiceImpl) GetTheaterByID(ctx context.Context, id uint) (*response.TheaterResponse, error) {
 	theater, err := s.Repo.FindTheaterByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, repository.ErrTheaterNotFound) {
-			return nil, ErrTheaterNotFound
+		if errors.Is(err, appErrors.ErrTheaterNotFound) {
+			return nil, appErrors.ErrTheaterNotFound
 		}
 		return nil, err
 	}
@@ -69,8 +66,8 @@ func (s *TheaterServiceImpl) GetTheaterByID(ctx context.Context, id uint) (*resp
 func (s *TheaterServiceImpl) UpdateTheater(ctx context.Context, id uint, req request.CreateAndUpdateTheaterRequest) (*response.TheaterResponse, error) {
 	theater, err := s.Repo.FindTheaterByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, repository.ErrTheaterNotFound) {
-			return nil, ErrTheaterNotFound
+		if errors.Is(err, appErrors.ErrTheaterNotFound) {
+			return nil, appErrors.ErrTheaterNotFound
 		}
 		return nil, err
 	}
@@ -88,8 +85,8 @@ func (s *TheaterServiceImpl) UpdateTheater(ctx context.Context, id uint, req req
 
 func (s *TheaterServiceImpl) DeleteTheater(ctx context.Context, id uint) error {
 	if _, err := s.Repo.FindTheaterByID(ctx, id); err != nil {
-		if errors.Is(err, repository.ErrTheaterNotFound) {
-			return ErrTheaterNotFound
+		if errors.Is(err, appErrors.ErrTheaterNotFound) {
+			return appErrors.ErrTheaterNotFound
 		}
 		return err
 	}

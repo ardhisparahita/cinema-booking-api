@@ -4,12 +4,9 @@ import (
 	"context"
 	"errors"
 
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/models"
 	"gorm.io/gorm"
-)
-
-var (
-	ErrTheaterNotFound = errors.New("theater not found")
 )
 
 type TheaterRepositoryImpl struct {
@@ -39,7 +36,7 @@ func (r *TheaterRepositoryImpl) FindTheaterByID(ctx context.Context, id uint) (*
 
 	err := r.DB.WithContext(ctx).First(&theater, id).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, ErrTheaterNotFound
+		return nil, appErrors.ErrTheaterNotFound
 	}
 
 	if err != nil {
@@ -64,7 +61,7 @@ func (r *TheaterRepositoryImpl) DeleteTheater(ctx context.Context, id uint) erro
 	}
 
 	if result.RowsAffected == 0 {
-		return ErrTheaterNotFound
+		return appErrors.ErrTheaterNotFound
 	}
 
 	return nil

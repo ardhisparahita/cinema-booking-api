@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/request"
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/service"
 	"github.com/ardhisparahita/cinema-booking-api/pkg/utils"
 	"github.com/gofiber/fiber/v3"
@@ -53,7 +54,7 @@ func (h *TheaterHandler) GetByID(c fiber.Ctx) error {
 	res, err := h.Service.GetTheaterByID(c.Context(), uint(id))
 
 	if err != nil {
-		if errors.Is(err, service.ErrTheaterNotFound) {
+		if errors.Is(err, appErrors.ErrTheaterNotFound) {
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
@@ -150,7 +151,7 @@ func (h *TheaterHandler) Update(c fiber.Ctx) error {
 
 	res, err := h.Service.UpdateTheater(c.Context(), uint(id), req)
 	if err != nil {
-		if errors.Is(err, service.ErrTheaterNotFound) {
+		if errors.Is(err, appErrors.ErrTheaterNotFound) {
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
@@ -187,7 +188,7 @@ func (h *TheaterHandler) Delete(c fiber.Ctx) error {
 	}
 
 	if err := h.Service.DeleteTheater(c.Context(), uint(id)); err != nil {
-		if errors.Is(err, service.ErrTheaterNotFound) {
+		if errors.Is(err, appErrors.ErrTheaterNotFound) {
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
