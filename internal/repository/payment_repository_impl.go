@@ -4,13 +4,10 @@ import (
 	"context"
 	"errors"
 
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-)
-
-var (
-	ErrPaymentNotFound = errors.New("payment not found")
 )
 
 type PaymentRepositoryImpl struct {
@@ -34,7 +31,7 @@ func (r *PaymentRepositoryImpl) FindPaymentByID(ctx context.Context, id uint) (*
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrPaymentNotFound
+			return nil, appErrors.ErrPaymentNotFound
 		}
 		return nil, err
 	}
@@ -51,7 +48,7 @@ func (r *PaymentRepositoryImpl) FindPaymentByBookingID(ctx context.Context, book
 	}
 
 	if result.RowsAffected == 0 {
-		return nil, ErrPaymentNotFound
+		return nil, appErrors.ErrPaymentNotFound
 	}
 
 	return &payment, nil
@@ -81,7 +78,7 @@ func (r *PaymentRepositoryImpl) FindPaymentByIDForUpdate(ctx context.Context, id
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrPaymentNotFound
+			return nil, appErrors.ErrPaymentNotFound
 		}
 		return nil, err
 	}

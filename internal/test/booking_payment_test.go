@@ -705,7 +705,7 @@ func TestConcurrentCreatePayment(t *testing.T) {
 		} else {
 			failedCount++
 
-			if !errors.Is(result.Err, service.ErrPaymentAlreadyExist) {
+			if !errors.Is(result.Err, appErrors.ErrPaymentAlreadyExist) {
 				t.Errorf("unexpected error: %v", result.Err)
 			}
 		}
@@ -882,11 +882,11 @@ func TestConcurrentCancelAndConfirmPayment(t *testing.T) {
 	if !confirmSuccess {
 		if !errors.Is(
 			confirmResult.Err,
-			service.ErrPaymentBookingNotPending,
+			appErrors.ErrBookingNotPending,
 		) &&
 			!errors.Is(
 				confirmResult.Err,
-				service.ErrPaymentBookingExpired,
+				appErrors.ErrBookingExpired,
 			) {
 			t.Fatalf(
 				"unexpected confirm error: %v",

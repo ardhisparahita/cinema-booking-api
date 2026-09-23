@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/request"
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/service"
 	"github.com/ardhisparahita/cinema-booking-api/middleware"
 	"github.com/ardhisparahita/cinema-booking-api/pkg/utils"
@@ -55,35 +56,35 @@ func (h *PaymentHandler) Create(c fiber.Ctx) error {
 	res, err := h.Service.CreatePayment(c.Context(), userID, req)
 	if err != nil {
 		switch {
-		case errors.Is(err, service.ErrPaymentBookingNotFound):
+		case errors.Is(err, appErrors.ErrBookingNotFound):
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
 				"booking not found",
 				err,
 			)
-		case errors.Is(err, service.ErrPaymentBookingNotPending):
+		case errors.Is(err, appErrors.ErrBookingNotPending):
 			return utils.ResponseError(
 				c,
 				fiber.StatusConflict,
 				"booking is not pending",
 				err,
 			)
-		case errors.Is(err, service.ErrPaymentBookingExpired):
+		case errors.Is(err, appErrors.ErrBookingExpired):
 			return utils.ResponseError(
 				c,
 				fiber.StatusConflict,
 				"booking has expired",
 				err,
 			)
-		case errors.Is(err, service.ErrPaymentAlreadyExist):
+		case errors.Is(err, appErrors.ErrPaymentAlreadyExist):
 			return utils.ResponseError(
 				c,
 				fiber.StatusConflict,
 				"payment already exist",
 				err,
 			)
-		case errors.Is(err, service.ErrInvalidPaymentMethod):
+		case errors.Is(err, appErrors.ErrInvalidPaymentMethod):
 			return utils.ResponseError(
 				c,
 				fiber.StatusBadRequest,
@@ -133,7 +134,7 @@ func (h *PaymentHandler) GetByID(c fiber.Ctx) error {
 	res, err := h.Service.GetPaymentByID(c.Context(), userID, uint(id))
 	if err != nil {
 		switch {
-		case errors.Is(err, service.ErrPaymentNotFound):
+		case errors.Is(err, appErrors.ErrPaymentNotFound):
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
@@ -182,35 +183,35 @@ func (h *PaymentHandler) Confirm(c fiber.Ctx) error {
 	res, err := h.Service.ConfirmPayment(c.Context(), userID, uint(id))
 	if err != nil {
 		switch {
-		case errors.Is(err, service.ErrPaymentNotFound):
+		case errors.Is(err, appErrors.ErrPaymentNotFound):
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
 				"payment not found",
 				err,
 			)
-		case errors.Is(err, service.ErrPaymentAlreadyPaid):
+		case errors.Is(err, appErrors.ErrPaymentAlreadyPaid):
 			return utils.ResponseError(
 				c,
 				fiber.StatusConflict,
 				"payment already paid",
 				err,
 			)
-		case errors.Is(err, service.ErrPaymentBookingNotPending):
+		case errors.Is(err, appErrors.ErrBookingNotPending):
 			return utils.ResponseError(
 				c,
 				fiber.StatusConflict,
 				"booking is not pending",
 				err,
 			)
-		case errors.Is(err, service.ErrPaymentBookingExpired):
+		case errors.Is(err, appErrors.ErrBookingExpired):
 			return utils.ResponseError(
 				c,
 				fiber.StatusConflict,
 				"booking has expired",
 				err,
 			)
-		case errors.Is(err, service.ErrPaymentCannotConfirm):
+		case errors.Is(err, appErrors.ErrPaymentCannotConfirm):
 			return utils.ResponseError(
 				c,
 				fiber.StatusConflict,

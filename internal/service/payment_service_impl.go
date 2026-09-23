@@ -10,6 +10,7 @@ import (
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/request"
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/response"
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/models"
 	"github.com/ardhisparahita/cinema-booking-api/internal/repository"
 	redisstore "github.com/ardhisparahita/cinema-booking-api/pkg/redis"
@@ -17,16 +18,16 @@ import (
 	"gorm.io/gorm"
 )
 
-var (
-	ErrPaymentNotFound          = errors.New("payment not found")
-	ErrPaymentBookingNotFound   = errors.New("booking not found")
-	ErrPaymentBookingNotPending = errors.New("booking is not Pending")
-	ErrPaymentBookingExpired    = errors.New("booking has expired")
-	ErrPaymentAlreadyExist      = errors.New("payment already exist")
-	ErrPaymentAlreadyPaid       = errors.New("payment already paid")
-	ErrInvalidPaymentMethod     = errors.New("invalid payment method")
-	ErrPaymentCannotConfirm     = errors.New("payment cannot be confirmed")
-)
+// var (
+// 	ErrPaymentNotFound          = errors.New("payment not found")
+// 	ErrPaymentBookingNotFound   = errors.New("booking not found")
+// 	ErrPaymentBookingNotPending = errors.New("booking is not Pending")
+// 	ErrPaymentBookingExpired    = errors.New("booking has expired")
+// 	ErrPaymentAlreadyExist      = errors.New("payment already exist")
+// 	ErrPaymentAlreadyPaid       = errors.New("payment already paid")
+// 	ErrInvalidPaymentMethod     = errors.New("invalid payment method")
+// 	ErrPaymentCannotConfirm     = errors.New("payment cannot be confirmed")
+// )
 
 type PaymentServiceImpl struct {
 	Repo        repository.PaymentRepository
@@ -47,7 +48,7 @@ func NewPaymentService(repo repository.PaymentRepository, bookingRepo repository
 func (s *PaymentServiceImpl) CreatePayment(ctx context.Context, userID uint, req request.CreatePaymentRequest) (*response.PaymentResponse, error) {
 
 	if !isValidPaymentMethod(req.Method) {
-		return nil, ErrInvalidPaymentMethod
+		return nil, appErrors.ErrInvalidPaymentMethod
 	}
 
 	var payment *models.Payment
@@ -58,34 +59,34 @@ func (s *PaymentServiceImpl) CreatePayment(ctx context.Context, userID uint, req
 
 		booking, err := txBookingRepo.FindBookingByIDForUpdate(ctx, req.BookingID)
 		if err != nil {
-			if errors.Is(err, repository.ErrBookingNotFound) {
-				return ErrPaymentBookingNotFound
+			if errors.Is(err, appErrors.ErrBookingNotFound) {
+				return appErrors.ErrBookingNotFound
 			}
 			return err
 		}
 
 		if booking.UserID != userID {
-			return ErrPaymentBookingNotFound
+			return appErrors.ErrBookingNotFound
 		}
 
 		if booking.Status == "expired" {
-			return ErrPaymentBookingExpired
+			return appErrors.ErrBookingExpired
 		}
 
 		if booking.Status != "pending" {
-			return ErrPaymentBookingNotPending
+			return appErrors.ErrBookingNotFound
 		}
 
 		if booking.ExpiresAt == nil || !booking.ExpiresAt.After(time.Now()) {
-			return ErrPaymentBookingExpired
+			return appErrors.ErrBookingExpired
 		}
 
 		existingPayment, err := s.Repo.FindPaymentByBookingID(ctx, booking.ID)
 		if err == nil && existingPayment != nil {
-			return ErrPaymentAlreadyExist
+			return appErrors.ErrPaymentAlreadyExist
 		}
 
-		if err != nil && !errors.Is(err, repository.ErrPaymentNotFound) {
+		if err != nil && !errors.Is(err, appErrors.ErrPaymentNotFound) {
 			return err
 		}
 
@@ -98,7 +99,7 @@ func (s *PaymentServiceImpl) CreatePayment(ctx context.Context, userID uint, req
 
 		if err := txPaymentRepo.CreatePayment(ctx, tx, payment); err != nil {
 			if isDuplicatePaymentError(err) {
-				return ErrPaymentAlreadyExist
+				return appErrors.ErrPaymentAlreadyExist
 			}
 			return err
 		}
@@ -115,14 +116,14 @@ func (s *PaymentServiceImpl) CreatePayment(ctx context.Context, userID uint, req
 func (s *PaymentServiceImpl) GetPaymentByID(ctx context.Context, userID uint, id uint) (*response.PaymentResponse, error) {
 	payment, err := s.Repo.FindPaymentByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, repository.ErrPaymentNotFound) {
-			return nil, ErrPaymentNotFound
+		if errors.Is(err, appErrors.ErrPaymentNotFound) {
+			return nil, appErrors.ErrPaymentNotFound
 		}
 		return nil, err
 	}
 
 	if payment.Booking.UserID != userID {
-		return nil, ErrPaymentNotFound
+		return nil, appErrors.ErrPaymentNotFound
 	}
 
 	return toPaymentResponse(payment), nil
@@ -135,8 +136,8 @@ func (s *PaymentServiceImpl) ConfirmPayment(
 ) (*response.PaymentResponse, error) {
 	paymentSnapshot, err := s.Repo.FindPaymentByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, repository.ErrPaymentNotFound) {
-			return nil, ErrPaymentNotFound
+		if errors.Is(err, appErrors.ErrPaymentNotFound) {
+			return nil, appErrors.ErrPaymentNotFound
 		}
 		return nil, err
 	}
@@ -157,39 +158,39 @@ func (s *PaymentServiceImpl) ConfirmPayment(
 			paymentSnapshot.BookingID,
 		)
 		if err != nil {
-			if errors.Is(err, repository.ErrBookingNotFound) {
-				return ErrPaymentBookingNotFound
+			if errors.Is(err, appErrors.ErrBookingNotFound) {
+				return appErrors.ErrBookingNotFound
 			}
 			return err
 		}
 
 		lockedPayment, err := txPaymentRepo.FindPaymentByIDForUpdate(ctx, id)
 		if err != nil {
-			if errors.Is(err, repository.ErrPaymentNotFound) {
-				return ErrPaymentNotFound
+			if errors.Is(err, appErrors.ErrPaymentNotFound) {
+				return appErrors.ErrPaymentNotFound
 			}
 			return err
 		}
 
 		if booking.UserID != userID {
-			return ErrPaymentNotFound
+			return appErrors.ErrPaymentNotFound
 		}
 
 		if booking.Status == "expired" {
-			return ErrPaymentBookingExpired
+			return appErrors.ErrBookingExpired
 		}
 
 		if booking.Status != "pending" {
-			return ErrPaymentBookingNotPending
+			return appErrors.ErrBookingNotPending
 		}
 
 		if booking.ExpiresAt == nil ||
 			!booking.ExpiresAt.After(time.Now()) {
-			return ErrPaymentBookingExpired
+			return appErrors.ErrBookingExpired
 		}
 
 		if lockedPayment.Status != "pending" {
-			return ErrPaymentCannotConfirm
+			return appErrors.ErrPaymentCannotConfirm
 		}
 
 		now := time.Now()
