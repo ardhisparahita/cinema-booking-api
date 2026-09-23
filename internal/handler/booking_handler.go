@@ -70,7 +70,7 @@ func (h *BookingHandler) Create(c fiber.Ctx) error {
 				"duplicate seat in booking",
 				err,
 			)
-		case errors.Is(err, appErrors.errshow):
+		case errors.Is(err, appErrors.ErrShowtimeNotFound):
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
