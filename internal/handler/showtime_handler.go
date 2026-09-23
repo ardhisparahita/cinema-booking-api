@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/request"
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/service"
 	"github.com/ardhisparahita/cinema-booking-api/pkg/utils"
 	"github.com/gofiber/fiber/v3"
@@ -52,7 +53,7 @@ func (h *ShowtimeHandler) GetByID(c fiber.Ctx) error {
 
 	res, err := h.Service.GetShowtimeByID(c.Context(), uint(id))
 	if err != nil {
-		if errors.Is(err, service.ErrShowtimeNotFound) {
+		if errors.Is(err, appErrors.ErrShowtimeNotFound) {
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
@@ -100,35 +101,35 @@ func (h *ShowtimeHandler) Create(c fiber.Ctx) error {
 	res, err := h.Service.CreateShowtime(c.Context(), req)
 	if err != nil {
 		switch {
-		case errors.Is(err, service.ErrMovieNotFoundShowtime):
+		case errors.Is(err, appErrors.ErrMovieNotFound):
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
 				"movie not found",
 				err,
 			)
-		case errors.Is(err, service.ErrStudioNotFoundShowtime):
+		case errors.Is(err, appErrors.ErrStudioNotFound):
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
 				"studio not found",
 				err,
 			)
-		case errors.Is(err, service.ErrInvalidShowtimeTime), errors.Is(err, service.ErrInvalidShowtimePrice):
+		case errors.Is(err, appErrors.ErrInvalidShowtimeTime), errors.Is(err, appErrors.ErrInvalidShowtimePrice):
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
 				"invalid showtime data",
 				err,
 			)
-		case errors.Is(err, service.ErrShowtimeConflict):
+		case errors.Is(err, appErrors.ErrShowtimeConflict):
 			return utils.ResponseError(
 				c,
 				fiber.StatusConflict,
 				"showtime conflicts with another showtime",
 				err,
 			)
-		case errors.Is(err, service.ErrShowtimeInPast):
+		case errors.Is(err, appErrors.ErrInvalidShowtimeInPast):
 			return utils.ResponseError(
 				c,
 				fiber.StatusBadRequest,
@@ -187,42 +188,42 @@ func (h *ShowtimeHandler) Update(c fiber.Ctx) error {
 	res, err := h.Service.UpdateShowtime(c.Context(), uint(id), req)
 	if err != nil {
 		switch {
-		case errors.Is(err, service.ErrShowtimeNotFound):
+		case errors.Is(err, appErrors.ErrShowtimeNotFound):
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
 				"showtime not found",
 				err,
 			)
-		case errors.Is(err, service.ErrMovieNotFoundShowtime):
+		case errors.Is(err, appErrors.ErrMovieNotFound):
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
 				"movie not found",
 				err,
 			)
-		case errors.Is(err, service.ErrStudioNotFound):
+		case errors.Is(err, appErrors.ErrStudioNotFound):
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
 				"studio not found",
 				err,
 			)
-		case errors.Is(err, service.ErrInvalidShowtimeTime), errors.Is(err, service.ErrInvalidShowtimePrice):
+		case errors.Is(err, appErrors.ErrInvalidShowtimeTime), errors.Is(err, appErrors.ErrInvalidShowtimePrice):
 			return utils.ResponseError(
 				c,
 				fiber.StatusBadRequest,
 				"invalid showtime data",
 				err,
 			)
-		case errors.Is(err, service.ErrShowtimeConflict):
+		case errors.Is(err, appErrors.ErrShowtimeConflict):
 			return utils.ResponseError(
 				c,
 				fiber.StatusConflict,
 				"showtime conflicts with another showtime",
 				err,
 			)
-		case errors.Is(err, service.ErrShowtimeInPast):
+		case errors.Is(err, appErrors.ErrInvalidShowtimeInPast):
 			return utils.ResponseError(
 				c,
 				fiber.StatusBadRequest,
@@ -259,7 +260,7 @@ func (h *ShowtimeHandler) Delete(c fiber.Ctx) error {
 	}
 
 	if err := h.Service.DeleteShowtime(c.Context(), uint(id)); err != nil {
-		if errors.Is(err, service.ErrShowtimeNotFound) {
+		if errors.Is(err, appErrors.ErrShowtimeNotFound) {
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,

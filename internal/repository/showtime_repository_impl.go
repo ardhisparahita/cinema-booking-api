@@ -5,12 +5,9 @@ import (
 	"errors"
 	"time"
 
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/models"
 	"gorm.io/gorm"
-)
-
-var (
-	ErrShowtimeNotFound = errors.New("showtime not found")
 )
 
 type ShowtimeRepositoryImpl struct {
@@ -40,7 +37,7 @@ func (r *ShowtimeRepositoryImpl) FindShowtimeByID(ctx context.Context, id uint) 
 
 	err := r.DB.WithContext(ctx).First(&showtime, id).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, ErrShowtimeNotFound
+		return nil, appErrors.ErrShowtimeNotFound
 	}
 
 	if err != nil {
@@ -82,7 +79,7 @@ func (r *ShowtimeRepositoryImpl) DeleteShowtime(ctx context.Context, id uint) er
 	}
 
 	if result.RowsAffected == 0 {
-		return ErrShowtimeNotFound
+		return appErrors.ErrShowtimeNotFound
 	}
 
 	return nil

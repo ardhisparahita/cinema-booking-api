@@ -12,16 +12,6 @@ import (
 	"github.com/ardhisparahita/cinema-booking-api/internal/repository"
 )
 
-// var (
-// 	ErrSeatNotFound            = errors.New("seat not found")
-// 	ErrSeatAlreadyExist        = errors.New("seat already exist")
-// 	ErrStudioNotFoundSeat      = errors.New("studio not found")
-// 	ErrInvalidSeatType         = errors.New("invalid seat type")
-// 	ErrInvalidSeatRow          = errors.New("invalid seat row")
-// 	ErrInvalidSeatColumn       = errors.New("invalid seat column")
-// 	ErrSeatOutsideStudioLayout = errors.New("seat position is outside studio layout")
-// )
-
 type SeatServiceImpl struct {
 	Repo       repository.SeatRepository
 	StudioRepo repository.StudioRepository

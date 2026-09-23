@@ -7,19 +7,20 @@ import (
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/request"
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/response"
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/models"
 	"github.com/ardhisparahita/cinema-booking-api/internal/repository"
 )
 
-var (
-	ErrShowtimeNotFound       = errors.New("showtime not found")
-	ErrMovieNotFoundShowtime  = errors.New("movie not found")
-	ErrStudioNotFoundShowtime = errors.New("studio not found")
-	ErrInvalidShowtimeTime    = errors.New("end time must be after start time")
-	ErrShowtimeConflict       = errors.New("showtime conflict with another showtime")
-	ErrInvalidShowtimePrice   = errors.New("price must be greater than zero")
-	ErrShowtimeInPast         = errors.New("showtime cannot be in the past")
-)
+// var (
+// 	ErrShowtimeNotFound       = errors.New("showtime not found")
+// 	ErrMovieNotFoundShowtime  = errors.New("movie not found")
+// 	ErrStudioNotFoundShowtime = errors.New("studio not found")
+// 	ErrInvalidShowtimeTime    = errors.New("end time must be after start time")
+// 	ErrShowtimeConflict       = errors.New("showtime conflict with another showtime")
+// 	ErrInvalidShowtimePrice   = errors.New("price must be greater than zero")
+// 	ErrShowtimeInPast         = errors.New("showtime cannot be in the past")
+// )
 
 type ShowtimeServiceImpl struct {
 	Repo       repository.ShowtimeRepository
@@ -37,28 +38,28 @@ func NewShowtimeService(repo repository.ShowtimeRepository, movieRepo repository
 
 func (s *ShowtimeServiceImpl) CreateShowtime(ctx context.Context, req request.CreateAndUpdateShowtimeRequest) (*response.ShowtimeResponse, error) {
 	if !req.EndTime.After(req.StartTime) {
-		return nil, ErrInvalidShowtimeTime
+		return nil, appErrors.ErrInvalidShowtimeTime
 	}
 
 	if !req.StartTime.After(time.Now()) {
-		return nil, ErrShowtimeInPast
+		return nil, appErrors.ErrInvalidShowtimeInPast
 	}
 
 	if req.Price <= 0 {
-		return nil, ErrInvalidShowtimePrice
+		return nil, appErrors.ErrInvalidShowtimePrice
 	}
 
 	if _, err := s.MovieRepo.FindMovieByID(ctx, req.MovieID); err != nil {
-		if errors.Is(err, repository.ErrMovieNotFound) {
-			return nil, ErrMovieNotFoundShowtime
+		if errors.Is(err, appErrors.ErrMovieNotFound) {
+			return nil, appErrors.ErrMovieNotFound
 		}
 
 		return nil, err
 	}
 
 	if _, err := s.StudioRepo.FindStudioByID(ctx, req.StudioID); err != nil {
-		if errors.Is(err, repository.ErrStudioNotFound) {
-			return nil, ErrStudioNotFoundShowtime
+		if errors.Is(err, appErrors.ErrStudioNotFound) {
+			return nil, appErrors.ErrStudioNotFound
 		}
 		return nil, err
 	}
@@ -69,7 +70,7 @@ func (s *ShowtimeServiceImpl) CreateShowtime(ctx context.Context, req request.Cr
 	}
 
 	if len(conflicts) > 0 {
-		return nil, ErrShowtimeConflict
+		return nil, appErrors.ErrShowtimeConflict
 	}
 
 	showtime := &models.Showtime{
@@ -104,8 +105,8 @@ func (s *ShowtimeServiceImpl) GetAllShowtimes(ctx context.Context) ([]response.S
 func (s *ShowtimeServiceImpl) GetShowtimeByID(ctx context.Context, id uint) (*response.ShowtimeResponse, error) {
 	showtime, err := s.Repo.FindShowtimeByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, repository.ErrShowtimeNotFound) {
-			return nil, ErrShowtimeNotFound
+		if errors.Is(err, appErrors.ErrShowtimeNotFound) {
+			return nil, appErrors.ErrShowtimeNotFound
 		}
 		return nil, err
 	}
@@ -116,35 +117,35 @@ func (s *ShowtimeServiceImpl) GetShowtimeByID(ctx context.Context, id uint) (*re
 func (s *ShowtimeServiceImpl) UpdateShowtime(ctx context.Context, id uint, req request.CreateAndUpdateShowtimeRequest) (*response.ShowtimeResponse, error) {
 	showtime, err := s.Repo.FindShowtimeByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, repository.ErrShowtimeNotFound) {
-			return nil, ErrShowtimeNotFound
+		if errors.Is(err, appErrors.ErrShowtimeNotFound) {
+			return nil, ErrShowtimeNotFoundBook
 		}
 		return nil, err
 	}
 
 	if !req.StartTime.After(req.StartTime) {
-		return nil, ErrInvalidShowtimeTime
+		return nil, appErrors.ErrInvalidShowtimeTime
 	}
 
 	if !req.StartTime.After(time.Now()) {
-		return nil, ErrShowtimeInPast
+		return nil, appErrors.ErrInvalidShowtimeInPast
 	}
 
 	if req.Price <= 0 {
-		return nil, ErrInvalidShowtimePrice
+		return nil, appErrors.ErrInvalidShowtimePrice
 	}
 
 	if _, err := s.MovieRepo.FindMovieByID(ctx, req.MovieID); err != nil {
-		if errors.Is(err, repository.ErrMovieNotFound) {
-			return nil, ErrMovieNotFoundShowtime
+		if errors.Is(err, appErrors.ErrMovieNotFound) {
+			return nil, appErrors.ErrMovieNotFound
 		}
 
 		return nil, err
 	}
 
 	if _, err := s.StudioRepo.FindStudioByID(ctx, req.StudioID); err != nil {
-		if errors.Is(err, repository.ErrStudioNotFound) {
-			return nil, ErrStudioNotFoundShowtime
+		if errors.Is(err, appErrors.ErrStudioNotFound) {
+			return nil, appErrors.ErrStudioNotFound
 		}
 		return nil, err
 	}
@@ -155,7 +156,7 @@ func (s *ShowtimeServiceImpl) UpdateShowtime(ctx context.Context, id uint, req r
 	}
 
 	if len(conflicts) > 0 {
-		return nil, ErrShowtimeConflict
+		return nil, appErrors.ErrShowtimeConflict
 	}
 
 	showtime.MovieID = req.MovieID
@@ -173,8 +174,8 @@ func (s *ShowtimeServiceImpl) UpdateShowtime(ctx context.Context, id uint, req r
 
 func (s *ShowtimeServiceImpl) DeleteShowtime(ctx context.Context, id uint) error {
 	if _, err := s.Repo.FindShowtimeByID(ctx, id); err != nil {
-		if errors.Is(err, repository.ErrShowtimeNotFound) {
-			return ErrShowtimeNotFound
+		if errors.Is(err, appErrors.ErrShowtimeNotFound) {
+			return appErrors.ErrShowtimeNotFound
 		}
 		return err
 	}
