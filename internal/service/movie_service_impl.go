@@ -90,10 +90,10 @@ func (s *MovieServiceImpl) CreateMovie(ctx context.Context, req request.CreateMo
 	return s.GetMovieByID(ctx, movie.ID)
 }
 
-func (s *MovieServiceImpl) GetAllMovies(ctx context.Context) ([]response.MovieResponse, error) {
-	movies, err := s.Repo.FindAllMovies(ctx)
+func (s *MovieServiceImpl) GetAllMovies(ctx context.Context, page, limit int) ([]response.MovieResponse, int64, error) {
+	movies, total, err := s.Repo.FindAllMovies(ctx, page, limit)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	result := make([]response.MovieResponse, 0, len(movies))
@@ -102,7 +102,7 @@ func (s *MovieServiceImpl) GetAllMovies(ctx context.Context) ([]response.MovieRe
 		result = append(result, toMovieResponse(movie))
 	}
 
-	return result, nil
+	return result, total, nil
 }
 
 func (s *MovieServiceImpl) GetMovieByID(ctx context.Context, id uint) (*response.MovieResponse, error) {

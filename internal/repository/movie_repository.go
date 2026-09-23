@@ -8,7 +8,7 @@ import (
 
 type MovieRepository interface {
 	CreateMovie(ctx context.Context, movie *models.Movie) error
-	FindAllMovies(ctx context.Context) ([]models.Movie, error)
+	FindAllMovies(ctx context.Context, page, limit int) ([]models.Movie, int64, error)
 	FindMovieByID(ctx context.Context, id uint) (*models.Movie, error)
 	UpdateMovie(ctx context.Context, movie *models.Movie) error
 	DeleteMovie(ctx context.Context, id uint) error

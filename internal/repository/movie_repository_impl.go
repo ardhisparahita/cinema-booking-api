@@ -23,13 +23,22 @@ func (r *MovieRepositoryImpl) CreateMovie(ctx context.Context, movie *models.Mov
 	return r.DB.WithContext(ctx).Create(movie).Error
 }
 
-func (r *MovieRepositoryImpl) FindAllMovies(ctx context.Context) ([]models.Movie, error) {
+func (r *MovieRepositoryImpl) FindAllMovies(ctx context.Context, page, limit int) ([]models.Movie, int64, error) {
 	var movies []models.Movie
+	var total int64
 
-	err := r.DB.WithContext(ctx).Preload("MovieGenres").Preload("MovieGenres.Genre").Order("created_at DESC").Find(&movies).Error
+	query := r.DB.WithContext(ctx).Model(&models.Movie{})
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
 
-	return movies, err
+	offset := (page - 1) * limit
+
+	err := r.DB.WithContext(ctx).Preload("MovieGenres").Preload("MovieGenres.Genre").Order("created_at DESC").Limit(limit).Offset(offset).Find(&movies).Error
+
+	return movies, total, err
 }
+
 func (r *MovieRepositoryImpl) FindMovieByID(ctx context.Context, id uint) (*models.Movie, error) {
 	var movie models.Movie
 
