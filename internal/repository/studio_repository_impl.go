@@ -4,13 +4,9 @@ import (
 	"context"
 	"errors"
 
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/models"
 	"gorm.io/gorm"
-)
-
-var (
-	ErrStudioNotFound     = errors.New("studio not found")
-	ErrStudioAlreadyExist = errors.New("studio already exist")
 )
 
 type StudioRepositoryImpl struct {
@@ -29,7 +25,7 @@ func (r *StudioRepositoryImpl) CreateStudio(ctx context.Context, studio *models.
 	err := r.DB.WithContext(ctx).Where("theater_id = ? AND name = ?", studio.TheaterID, studio.Name).First(&existing).Error
 
 	if err == nil {
-		return ErrStudioAlreadyExist
+		return appErrors.ErrStudioAlreadyExists
 	}
 
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -53,7 +49,7 @@ func (r *StudioRepositoryImpl) FindStudioByID(ctx context.Context, id uint) (*mo
 	err := r.DB.WithContext(ctx).First(&studio, id).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, ErrStudioNotFound
+		return nil, appErrors.ErrStudioNotFound
 	}
 
 	if err != nil {
@@ -69,7 +65,7 @@ func (r *StudioRepositoryImpl) FindStudioByName(ctx context.Context, theaterID u
 	err := r.DB.WithContext(ctx).Where("theater_id = ? AND name = ?", theaterID, name).First(&studio).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, ErrStudioNotFound
+		return nil, appErrors.ErrStudioNotFound
 	}
 
 	if err != nil {
@@ -85,7 +81,7 @@ func (r *StudioRepositoryImpl) UpdateStudio(ctx context.Context, studio *models.
 	err := r.DB.WithContext(ctx).Where("theater_id = ? AND name = ? AND id != ?", studio.TheaterID, studio.Name, studio.ID).First(&existing).Error
 
 	if err == nil {
-		return ErrStudioAlreadyExist
+		return appErrors.ErrStudioAlreadyExists
 	}
 
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -103,7 +99,7 @@ func (r *StudioRepositoryImpl) UpdateStudio(ctx context.Context, studio *models.
 	}
 
 	if result.RowsAffected == 0 {
-		return ErrStudioNotFound
+		return appErrors.ErrStudioNotFound
 	}
 
 	return nil
@@ -117,7 +113,7 @@ func (r *StudioRepositoryImpl) DeleteStudio(ctx context.Context, id uint) error 
 	}
 
 	if result.RowsAffected == 0 {
-		return ErrStudioNotFound
+		return appErrors.ErrStudioNotFound
 	}
 
 	return nil

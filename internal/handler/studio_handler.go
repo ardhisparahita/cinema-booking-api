@@ -5,8 +5,10 @@ import (
 	"strconv"
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/request"
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/service"
 	"github.com/ardhisparahita/cinema-booking-api/pkg/utils"
+
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -34,7 +36,7 @@ func (h *StudioHandler) GetAll(c fiber.Ctx) error {
 	res, err := h.Service.GetAllStudios(c.Context(), uint(theaterID))
 
 	if err != nil {
-		if errors.Is(err, service.ErrTheaterNotFoundForStudio) {
+		if errors.Is(err, appErrors.ErrTheaterNotFound) {
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
@@ -71,7 +73,7 @@ func (h *StudioHandler) GetByID(c fiber.Ctx) error {
 
 	res, err := h.Service.GetStudioByID(c.Context(), uint(id))
 	if err != nil {
-		if errors.Is(err, service.ErrStudioNotFound) {
+		if errors.Is(err, appErrors.ErrStudioNotFound) {
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
@@ -129,14 +131,14 @@ func (h *StudioHandler) Create(c fiber.Ctx) error {
 	res, err := h.Service.CreateStudio(c.Context(), uint(theaterID), req)
 	if err != nil {
 		switch {
-		case errors.Is(err, service.ErrTheaterNotFoundForStudio):
+		case errors.Is(err, appErrors.ErrTheaterNotFound):
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
 				"theater not found",
 				err,
 			)
-		case errors.Is(err, service.ErrStudioAlreadyExist):
+		case errors.Is(err, appErrors.ErrStudioAlreadyExists):
 			return utils.ResponseError(
 				c,
 				fiber.StatusConflict,
@@ -195,14 +197,14 @@ func (h *StudioHandler) Update(c fiber.Ctx) error {
 	res, err := h.Service.UpdateStudio(c.Context(), uint(id), req)
 	if err != nil {
 		switch {
-		case errors.Is(err, service.ErrStudioNotFound):
+		case errors.Is(err, appErrors.ErrStudioNotFound):
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
 				"studio not found",
 				err,
 			)
-		case errors.Is(err, service.ErrStudioAlreadyExist):
+		case errors.Is(err, appErrors.ErrStudioAlreadyExists):
 			return utils.ResponseError(
 				c,
 				fiber.StatusConflict,
@@ -238,7 +240,7 @@ func (h *StudioHandler) Delete(c fiber.Ctx) error {
 	}
 
 	if err := h.Service.DeleteStudio(c.Context(), uint(id)); err != nil {
-		if errors.Is(err, service.ErrStudioNotFound) {
+		if errors.Is(err, appErrors.ErrStudioNotFound) {
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,

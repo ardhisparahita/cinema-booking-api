@@ -7,14 +7,9 @@ import (
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/request"
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/response"
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/models"
 	"github.com/ardhisparahita/cinema-booking-api/internal/repository"
-)
-
-var (
-	ErrStudioNotFound           = errors.New("studio not found")
-	ErrStudioAlreadyExist       = errors.New("studio already exist")
-	ErrTheaterNotFoundForStudio = errors.New("theater not found")
 )
 
 type StudioServiceImpl struct {
@@ -31,8 +26,8 @@ func NewStudioService(repo repository.StudioRepository, theaterRepo repository.T
 
 func (s *StudioServiceImpl) CreateStudio(ctx context.Context, theaterID uint, req request.CreateAndUpdateStudioRequest) (*response.StudioResponse, error) {
 	if _, err := s.TheaterRepo.FindTheaterByID(ctx, theaterID); err != nil {
-		if errors.Is(err, repository.ErrTheaterNotFound) {
-			return nil, ErrTheaterNotFoundForStudio
+		if errors.Is(err, appErrors.ErrTheaterNotFound) {
+			return nil, appErrors.ErrTheaterNotFound
 		}
 		return nil, err
 	}
@@ -41,10 +36,10 @@ func (s *StudioServiceImpl) CreateStudio(ctx context.Context, theaterID uint, re
 
 	existing, err := s.Repo.FindStudioByName(ctx, theaterID, name)
 	if err == nil && existing != nil {
-		return nil, ErrStudioAlreadyExist
+		return nil, appErrors.ErrStudioAlreadyExists
 	}
 
-	if err != nil && !errors.Is(err, repository.ErrStudioNotFound) {
+	if err != nil && !errors.Is(err, appErrors.ErrStudioNotFound) {
 		return nil, err
 	}
 
@@ -64,8 +59,8 @@ func (s *StudioServiceImpl) CreateStudio(ctx context.Context, theaterID uint, re
 
 func (s *StudioServiceImpl) GetAllStudios(ctx context.Context, theaterID uint) ([]response.StudioResponse, error) {
 	if _, err := s.TheaterRepo.FindTheaterByID(ctx, theaterID); err != nil {
-		if errors.Is(err, repository.ErrStudioNotFound) {
-			return nil, ErrTheaterNotFoundForStudio
+		if errors.Is(err, appErrors.ErrStudioNotFound) {
+			return nil, appErrors.ErrTheaterNotFound
 		}
 
 		return nil, err
@@ -89,8 +84,8 @@ func (s *StudioServiceImpl) GetStudioByID(ctx context.Context, id uint) (*respon
 	studio, err := s.Repo.FindStudioByID(ctx, id)
 
 	if err != nil {
-		if errors.Is(err, repository.ErrStudioNotFound) {
-			return nil, ErrStudioNotFound
+		if errors.Is(err, appErrors.ErrStudioNotFound) {
+			return nil, appErrors.ErrStudioNotFound
 		}
 		return nil, err
 	}
@@ -102,8 +97,8 @@ func (s *StudioServiceImpl) UpdateStudio(ctx context.Context, id uint, req reque
 	studio, err := s.Repo.FindStudioByID(ctx, id)
 
 	if err != nil {
-		if errors.Is(err, repository.ErrStudioNotFound) {
-			return nil, ErrStudioNotFound
+		if errors.Is(err, appErrors.ErrStudioNotFound) {
+			return nil, appErrors.ErrStudioNotFound
 		}
 		return nil, err
 	}
@@ -112,10 +107,10 @@ func (s *StudioServiceImpl) UpdateStudio(ctx context.Context, id uint, req reque
 
 	existing, err := s.Repo.FindStudioByName(ctx, studio.TheaterID, name)
 	if err == nil && existing.ID != studio.ID {
-		return nil, ErrStudioAlreadyExist
+		return nil, appErrors.ErrStudioAlreadyExists
 	}
 
-	if err != nil && !errors.Is(err, repository.ErrStudioNotFound) {
+	if err != nil && !errors.Is(err, appErrors.ErrStudioNotFound) {
 		return nil, err
 	}
 
@@ -132,8 +127,8 @@ func (s *StudioServiceImpl) UpdateStudio(ctx context.Context, id uint, req reque
 
 func (s *StudioServiceImpl) DeleteStudio(ctx context.Context, id uint) error {
 	if _, err := s.Repo.FindStudioByID(ctx, id); err != nil {
-		if errors.Is(err, repository.ErrStudioNotFound) {
-			return ErrStudioNotFound
+		if errors.Is(err, appErrors.ErrStudioNotFound) {
+			return appErrors.ErrStudioNotFound
 		}
 		return err
 	}
