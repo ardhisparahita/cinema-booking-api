@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/request"
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/service"
 	"github.com/ardhisparahita/cinema-booking-api/middleware"
 	"github.com/ardhisparahita/cinema-booking-api/pkg/utils"
@@ -55,56 +56,56 @@ func (h *BookingHandler) Create(c fiber.Ctx) error {
 	res, err := h.Service.CreateBooking(c.Context(), userID, req)
 	if err != nil {
 		switch {
-		case errors.Is(err, service.ErrInvalidBookingSeats):
+		case errors.Is(err, appErrors.ErrInvalidBookingSeats):
 			return utils.ResponseError(
 				c,
 				fiber.StatusBadRequest,
 				"at least one seat in required",
 				err,
 			)
-		case errors.Is(err, service.ErrDuplicateSeat):
+		case errors.Is(err, appErrors.ErrDuplicateSeat):
 			return utils.ResponseError(
 				c,
 				fiber.StatusBadRequest,
 				"duplicate seat in booking",
 				err,
 			)
-		case errors.Is(err, service.ErrShowtimeNotFoundBook):
+		case errors.Is(err, appErrors.errshow):
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
 				"showtime not found",
 				err,
 			)
-		case errors.Is(err, service.ErrShowtimeFinished):
+		case errors.Is(err, appErrors.ErrShowtimeFinished):
 			return utils.ResponseError(
 				c,
 				fiber.StatusConflict,
 				"showtime already finished",
 				err,
 			)
-		case errors.Is(err, service.ErrSeatNotFoundBook):
+		case errors.Is(err, appErrors.ErrSeatNotFound):
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
 				"one or more seats not found",
 				err,
 			)
-		case errors.Is(err, service.ErrSeatWrongStudio):
+		case errors.Is(err, appErrors.ErrSeatWrongStudio):
 			return utils.ResponseError(
 				c,
 				fiber.StatusBadRequest,
 				"one or more seats do not belong to showtime studio",
 				err,
 			)
-		case errors.Is(err, service.ErrSeatAlreadyBooked):
+		case errors.Is(err, appErrors.ErrSeatAlreadyBooked):
 			return utils.ResponseError(
 				c,
 				fiber.StatusConflict,
 				"one or more seats already booked",
 				err,
 			)
-		case errors.Is(err, service.ErrSeatLocked):
+		case errors.Is(err, appErrors.ErrSeatLocked):
 			return utils.ResponseError(
 				c,
 				fiber.StatusConflict,
@@ -181,7 +182,7 @@ func (h *BookingHandler) GetByID(c fiber.Ctx) error {
 	res, err := h.Service.GetBookingByID(c.Context(), userID, uint(id))
 	if err != nil {
 		switch {
-		case errors.Is(err, service.ErrBookingNotFound):
+		case errors.Is(err, appErrors.ErrBookingNotFound):
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
@@ -230,14 +231,14 @@ func (h *BookingHandler) CancelBooking(c fiber.Ctx) error {
 	err = h.Service.CancelBooking(c.Context(), userID, uint(id))
 	if err != nil {
 		switch {
-		case errors.Is(err, service.ErrBookingNotFound):
+		case errors.Is(err, appErrors.ErrBookingNotFound):
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
 				"booking not found",
 				err,
 			)
-		case errors.Is(err, service.ErrBookingCannotCancel):
+		case errors.Is(err, appErrors.ErrBookingCannotCancel):
 			return utils.ResponseError(
 				c,
 				fiber.StatusConflict,

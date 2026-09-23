@@ -11,6 +11,7 @@ import (
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/request"
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/response"
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/models"
 	"github.com/ardhisparahita/cinema-booking-api/internal/repository"
 	"github.com/ardhisparahita/cinema-booking-api/internal/service"
@@ -436,7 +437,7 @@ func TestConcurrentBookingSameSeat(t *testing.T) {
 		} else {
 			failedCount++
 
-			if !errors.Is(result.Err, service.ErrSeatLocked) && !errors.Is(result.Err, service.ErrSeatAlreadyBooked) {
+			if !errors.Is(result.Err, appErrors.ErrSeatLocked) && !errors.Is(result.Err, appErrors.ErrSeatAlreadyBooked) {
 				t.Errorf("unexpected error: %v", result.Err)
 			}
 		}
@@ -869,7 +870,7 @@ func TestConcurrentCancelAndConfirmPayment(t *testing.T) {
 	if !cancelSuccess {
 		if !errors.Is(
 			cancelResult.Err,
-			service.ErrBookingCannotCancel,
+			appErrors.ErrBookingCannotCancel,
 		) {
 			t.Fatalf(
 				"unexpected cancel error: %v",

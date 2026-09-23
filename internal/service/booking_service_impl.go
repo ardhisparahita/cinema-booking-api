@@ -10,6 +10,7 @@ import (
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/request"
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/response"
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/models"
 	"github.com/ardhisparahita/cinema-booking-api/internal/repository"
 	redisstore "github.com/ardhisparahita/cinema-booking-api/pkg/redis"
@@ -17,18 +18,18 @@ import (
 	"gorm.io/gorm"
 )
 
-var (
-	ErrBookingNotFound      = errors.New("booking not found")
-	ErrShowtimeNotFoundBook = errors.New("showtime not found")
-	ErrShowtimeFinished     = errors.New("showtime already finished")
-	ErrSeatNotFoundBook     = errors.New("one or more seats not found")
-	ErrSeatWrongStudio      = errors.New("one or more seats do not belong to showtime studio")
-	ErrSeatAlreadyBooked    = errors.New("one or more seats already booked")
-	ErrDuplicateSeat        = errors.New("duplicate seat in booking")
-	ErrInvalidBookingSeats  = errors.New("at least on seat is required")
-	ErrBookingCannotCancel  = errors.New("booking cannot be cancelled")
-	ErrSeatLocked           = errors.New("one or more seats are currently locked")
-)
+// var (
+// 	ErrBookingNotFound      = errors.New("booking not found")
+// 	ErrShowtimeNotFoundBook = errors.New("showtime not found")
+// 	ErrShowtimeFinished     = errors.New("showtime already finished")
+// 	ErrSeatNotFoundBook     = errors.New("one or more seats not found")
+// 	ErrSeatWrongStudio      = errors.New("one or more seats do not belong to showtime studio")
+// 	ErrSeatAlreadyBooked    = errors.New("one or more seats already booked")
+// 	ErrDuplicateSeat        = errors.New("duplicate seat in booking")
+// 	ErrInvalidBookingSeats  = errors.New("at least on seat is required")
+// 	ErrBookingCannotCancel  = errors.New("booking cannot be cancelled")
+// 	ErrSeatLocked           = errors.New("one or more seats are currently locked")
+// )
 
 type BookingServiceImpl struct {
 	Repo         repository.BookingRepository
@@ -52,24 +53,24 @@ func NewBookingService(repo repository.BookingRepository, showtimeRepo repositor
 
 func (s *BookingServiceImpl) CreateBooking(ctx context.Context, userID uint, req request.CreateBookingRequest) (*response.BookingResponse, error) {
 	if len(req.SeatIDs) == 0 {
-		return nil, ErrInvalidBookingSeats
+		return nil, appErrors.ErrInvalidBookingSeats
 	}
 
 	seatIDs := uniqueUint(req.SeatIDs)
 	if len(seatIDs) != len(req.SeatIDs) {
-		return nil, ErrDuplicateSeat
+		return nil, appErrors.ErrDuplicateSeat
 	}
 
 	showtime, err := s.ShowtimeRepo.FindShowtimeByID(ctx, req.ShowtimeID)
 	if err != nil {
-		if errors.Is(err, repository.ErrShowtimeNotFound) {
-			return nil, ErrShowtimeNotFoundBook
+		if errors.Is(err, appErrors.ErrShowtimeNotFound) {
+			return nil, appErrors.ErrShowtimeNotFound
 		}
 		return nil, err
 	}
 
 	if !showtime.EndTime.After(time.Now()) {
-		return nil, ErrShowtimeFinished
+		return nil, appErrors.ErrShowtimeFinished
 	}
 
 	seats, err := s.SeatRepo.FindSeatByIDs(ctx, seatIDs)
@@ -78,12 +79,12 @@ func (s *BookingServiceImpl) CreateBooking(ctx context.Context, userID uint, req
 	}
 
 	if len(seats) != len(seatIDs) {
-		return nil, ErrSeatNotFoundBook
+		return nil, appErrors.ErrSeatNotFound
 	}
 
 	for _, seat := range seats {
 		if seat.StudioID != showtime.StudioID {
-			return nil, ErrSeatWrongStudio
+			return nil, appErrors.ErrSeatWrongStudio
 		}
 	}
 
@@ -93,7 +94,7 @@ func (s *BookingServiceImpl) CreateBooking(ctx context.Context, userID uint, req
 	}
 
 	if len(bookedSeatIDs) > 0 {
-		return nil, ErrSeatAlreadyBooked
+		return nil, appErrors.ErrSeatAlreadyBooked
 	}
 
 	totalPrice := showtime.Price * float64(len(seats))
@@ -109,7 +110,7 @@ func (s *BookingServiceImpl) CreateBooking(ctx context.Context, userID uint, req
 	}
 
 	if !locked {
-		return nil, ErrSeatLocked
+		return nil, appErrors.ErrSeatLocked
 	}
 
 	unlock := true
@@ -167,7 +168,7 @@ func (s *BookingServiceImpl) CreateBooking(ctx context.Context, userID uint, req
 
 	if err != nil {
 		if isDuplicateEntryError(err) {
-			return nil, ErrSeatAlreadyBooked
+			return nil, appErrors.ErrSeatAlreadyBooked
 		}
 
 		return nil, err
@@ -181,14 +182,14 @@ func (s *BookingServiceImpl) CreateBooking(ctx context.Context, userID uint, req
 func (s *BookingServiceImpl) GetBookingByID(ctx context.Context, userID uint, id uint) (*response.BookingResponse, error) {
 	booking, err := s.Repo.FindBookingByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, repository.ErrBookingNotFound) {
-			return nil, ErrBookingNotFound
+		if errors.Is(err, appErrors.ErrBookingNotFound) {
+			return nil, appErrors.ErrBookingNotFound
 		}
 		return nil, err
 	}
 
 	if booking.UserID != userID {
-		return nil, ErrBookingNotFound
+		return nil, appErrors.ErrBookingNotFound
 	}
 
 	return toBookingResponse(booking), nil
@@ -219,18 +220,18 @@ func (s *BookingServiceImpl) CancelBooking(ctx context.Context, userID uint, id 
 		txBookingRepo := repository.NewBookingRepository(tx)
 		booking, err := txBookingRepo.FindBookingByIDForUpdate(ctx, id)
 		if err != nil {
-			if errors.Is(err, repository.ErrBookingNotFound) {
-				return ErrBookingNotFound
+			if errors.Is(err, appErrors.ErrBookingNotFound) {
+				return appErrors.ErrBookingNotFound
 			}
 			return err
 		}
 
 		if booking.UserID != userID {
-			return ErrBookingNotFound
+			return appErrors.ErrBookingNotFound
 		}
 
 		if booking.Status != "pending" {
-			return ErrBookingCannotCancel
+			return appErrors.ErrBookingCannotCancel
 		}
 
 		showtimeID = booking.ShowtimeID
@@ -242,8 +243,8 @@ func (s *BookingServiceImpl) CancelBooking(ctx context.Context, userID uint, id 
 		}
 
 		if err := txBookingRepo.CancelBooking(ctx, id); err != nil {
-			if errors.Is(err, repository.ErrBookingNotPending) {
-				return ErrBookingCannotCancel
+			if errors.Is(err, appErrors.ErrBookingNotPending) {
+				return appErrors.ErrBookingCannotCancel
 			}
 			return err
 		}
@@ -301,7 +302,7 @@ func (s *BookingServiceImpl) ExpireBooking(ctx context.Context) error {
 		})
 
 		if err != nil {
-			if errors.Is(err, repository.ErrBookingNotFound) {
+			if errors.Is(err, appErrors.ErrBookingNotFound) {
 				continue
 			}
 			if firstError == nil {

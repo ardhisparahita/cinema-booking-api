@@ -5,14 +5,10 @@ import (
 	"errors"
 	"time"
 
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-)
-
-var (
-	ErrBookingNotFound   = errors.New("booking not found")
-	ErrBookingNotPending = errors.New("booking is not pending")
 )
 
 type BookingRepositoryImpl struct {
@@ -42,7 +38,7 @@ func (r *BookingRepositoryImpl) FindBookingByID(ctx context.Context, id uint) (*
 
 	err := r.DB.WithContext(ctx).Preload("BookingSeats").Preload("BookingSeats.Seat").First(&booking, id).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, ErrBookingNotFound
+		return nil, appErrors.ErrBookingNotFound
 	}
 
 	if err != nil {
@@ -80,7 +76,7 @@ func (r *BookingRepositoryImpl) CancelBooking(ctx context.Context, id uint) erro
 	}
 
 	if result.RowsAffected == 0 {
-		return ErrBookingNotFound
+		return appErrors.ErrBookingNotFound
 	}
 
 	return nil
@@ -106,7 +102,7 @@ func (r *BookingRepositoryImpl) ExpireBooking(ctx context.Context, tx *gorm.DB, 
 	}
 
 	if result.RowsAffected == 0 {
-		return ErrBookingNotPending
+		return appErrors.ErrBookingNotPending
 	}
 
 	return nil
@@ -119,7 +115,7 @@ func (r *BookingRepositoryImpl) FindBookingByIDForUpdate(ctx context.Context, id
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrBookingNotFound
+			return nil, appErrors.ErrBookingNotFound
 		}
 		return nil, err
 	}
@@ -135,7 +131,7 @@ func (r *BookingRepositoryImpl) ConfirmBooking(ctx context.Context, id uint) err
 	}
 
 	if result.RowsAffected == 0 {
-		return ErrBookingNotPending
+		return appErrors.ErrBookingNotPending
 	}
 
 	return nil
