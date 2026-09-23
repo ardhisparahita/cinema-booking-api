@@ -18,18 +18,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// var (
-// 	ErrBookingNotFound      = errors.New("booking not found")
-// 	ErrShowtimeNotFoundBook = errors.New("showtime not found")
-// 	ErrShowtimeFinished     = errors.New("showtime already finished")
-// 	ErrSeatNotFoundBook     = errors.New("one or more seats not found")
-// 	ErrSeatWrongStudio      = errors.New("one or more seats do not belong to showtime studio")
-// 	ErrSeatAlreadyBooked    = errors.New("one or more seats already booked")
-// 	ErrDuplicateSeat        = errors.New("duplicate seat in booking")
-// 	ErrInvalidBookingSeats  = errors.New("at least on seat is required")
-// 	ErrBookingCannotCancel  = errors.New("booking cannot be cancelled")
-// 	ErrSeatLocked           = errors.New("one or more seats are currently locked")
-// )
 
 type BookingServiceImpl struct {
 	Repo         repository.BookingRepository

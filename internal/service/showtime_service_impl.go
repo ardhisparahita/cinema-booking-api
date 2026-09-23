@@ -12,16 +12,6 @@ import (
 	"github.com/ardhisparahita/cinema-booking-api/internal/repository"
 )
 
-// var (
-// 	ErrShowtimeNotFound       = errors.New("showtime not found")
-// 	ErrMovieNotFoundShowtime  = errors.New("movie not found")
-// 	ErrStudioNotFoundShowtime = errors.New("studio not found")
-// 	ErrInvalidShowtimeTime    = errors.New("end time must be after start time")
-// 	ErrShowtimeConflict       = errors.New("showtime conflict with another showtime")
-// 	ErrInvalidShowtimePrice   = errors.New("price must be greater than zero")
-// 	ErrShowtimeInPast         = errors.New("showtime cannot be in the past")
-// )
-
 type ShowtimeServiceImpl struct {
 	Repo       repository.ShowtimeRepository
 	MovieRepo  repository.MovieRepository
