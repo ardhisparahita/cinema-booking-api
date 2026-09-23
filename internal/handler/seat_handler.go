@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/request"
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/service"
 	"github.com/ardhisparahita/cinema-booking-api/pkg/utils"
 	"github.com/gofiber/fiber/v3"
@@ -34,7 +35,7 @@ func (h *SeatHandler) GetAll(c fiber.Ctx) error {
 	res, err := h.Service.GetAllSeats(c.Context(), uint(studioID))
 
 	if err != nil {
-		if errors.Is(err, service.ErrStudioNotFoundSeat) {
+		if errors.Is(err, appErrors.ErrStudioNotFound) {
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
@@ -72,7 +73,7 @@ func (h *SeatHandler) GetByID(c fiber.Ctx) error {
 
 	res, err := h.Service.GetSetByID(c.Context(), uint(id))
 	if err != nil {
-		if errors.Is(err, service.ErrSeatNotFound) {
+		if errors.Is(err, appErrors.ErrSeatNotFound) {
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
@@ -130,28 +131,28 @@ func (h *SeatHandler) Create(c fiber.Ctx) error {
 	res, err := h.Service.CreateSeat(c.Context(), uint(studioID), req)
 	if err != nil {
 		switch {
-		case errors.Is(err, service.ErrStudioNotFoundSeat):
+		case errors.Is(err, appErrors.ErrStudioNotFound):
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
 				"studio not found",
 				err,
 			)
-		case errors.Is(err, service.ErrSeatAlreadyExist):
+		case errors.Is(err, appErrors.ErrSeatAlreadyExists):
 			return utils.ResponseError(
 				c,
 				fiber.StatusConflict,
 				"seat already exist",
 				err,
 			)
-		case errors.Is(err, service.ErrInvalidSeatType), errors.Is(err, service.ErrInvalidSeatRow):
+		case errors.Is(err, appErrors.ErrInvalidSeatType), errors.Is(err, appErrors.ErrInvalidSeatRow):
 			return utils.ResponseError(
 				c,
 				fiber.StatusBadRequest,
 				"invalid seat data",
 				err,
 			)
-		case errors.Is(err, service.ErrSeatOutsideStudioLayout):
+		case errors.Is(err, appErrors.ErrSeatOutsideStudioLayout):
 			return utils.ResponseError(
 				c,
 				fiber.StatusBadRequest,
@@ -210,28 +211,28 @@ func (h *SeatHandler) Update(c fiber.Ctx) error {
 	res, err := h.Service.UpdateSeat(c.Context(), uint(id), req)
 	if err != nil {
 		switch {
-		case errors.Is(err, service.ErrSeatNotFound):
+		case errors.Is(err, appErrors.ErrSeatNotFound):
 			utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
 				"seat not found",
 				err,
 			)
-		case errors.Is(err, service.ErrSeatAlreadyExist):
+		case errors.Is(err, appErrors.ErrSeatAlreadyExists):
 			utils.ResponseError(
 				c,
 				fiber.StatusConflict,
 				"seat already exist",
 				err,
 			)
-		case errors.Is(err, service.ErrInvalidSeatType), errors.Is(err, service.ErrInvalidSeatRow):
+		case errors.Is(err, appErrors.ErrInvalidSeatType), errors.Is(err, appErrors.ErrInvalidSeatRow):
 			utils.ResponseError(
 				c,
 				fiber.StatusBadRequest,
 				"invalid seat data",
 				err,
 			)
-		case errors.Is(err, service.ErrSeatOutsideStudioLayout):
+		case errors.Is(err, appErrors.ErrSeatOutsideStudioLayout):
 			return utils.ResponseError(
 				c,
 				fiber.StatusBadRequest,
@@ -268,7 +269,7 @@ func (h *SeatHandler) Delete(c fiber.Ctx) error {
 	}
 
 	if err := h.Service.DeleteSeat(c.Context(), uint(id)); err != nil {
-		if errors.Is(err, service.ErrSeatNotFound) {
+		if errors.Is(err, appErrors.ErrSeatNotFound) {
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,

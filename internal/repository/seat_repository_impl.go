@@ -4,13 +4,10 @@ import (
 	"context"
 	"errors"
 
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/models"
-	"gorm.io/gorm"
-)
 
-var (
-	ErrSeatNotFound     = errors.New("seat not found")
-	ErrSeatAlreadyExist = errors.New("seat already exist")
+	"gorm.io/gorm"
 )
 
 type SeatRepositoryImpl struct {
@@ -29,7 +26,7 @@ func (r *SeatRepositoryImpl) CreateSeat(ctx context.Context, seat *models.Seat) 
 	err := r.DB.WithContext(ctx).Where("studio_id = ? AND row_label = ? AND col_number = ?", seat.StudioID, seat.RowLabel, seat.ColNumber).First(&existing).Error
 
 	if err == nil {
-		return ErrSeatAlreadyExist
+		return appErrors.ErrSeatAlreadyExists
 	}
 
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -53,7 +50,7 @@ func (r *SeatRepositoryImpl) FindSeatByID(ctx context.Context, id uint) (*models
 	err := r.DB.WithContext(ctx).Find(&seat, id).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, ErrSeatNotFound
+		return nil, appErrors.ErrSeatNotFound
 	}
 
 	if err != nil {
@@ -69,7 +66,7 @@ func (r *SeatRepositoryImpl) FindSeatByPosition(ctx context.Context, studioID ui
 	err := r.DB.WithContext(ctx).Where("studio_id = ? AND row_label = ? AND col_number = ?", studioID, rowLabel, colNumber).First(&seat).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, ErrSeatNotFound
+		return nil, appErrors.ErrSeatNotFound
 	}
 
 	if err != nil {
@@ -95,7 +92,7 @@ func (r *SeatRepositoryImpl) DeleteSeat(ctx context.Context, id uint16) error {
 	}
 
 	if result.RowsAffected == 0 {
-		return ErrSeatNotFound
+		return appErrors.ErrSeatNotFound
 	}
 
 	return nil
