@@ -118,7 +118,7 @@ func (s *ShowtimeServiceImpl) UpdateShowtime(ctx context.Context, id uint, req r
 	showtime, err := s.Repo.FindShowtimeByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, appErrors.ErrShowtimeNotFound) {
-			return nil, ErrShowtimeNotFoundBook
+			return nil, appErrors.ErrShowtimeNotFound
 		}
 		return nil, err
 	}
