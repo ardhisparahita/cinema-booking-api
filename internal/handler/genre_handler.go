@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/request"
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/service"
 	"github.com/ardhisparahita/cinema-booking-api/pkg/utils"
 	"github.com/gofiber/fiber/v3"
@@ -108,11 +109,11 @@ func (h *GenreHandler) Create(c fiber.Ctx) error {
 	res, err := h.GenreService.CreateGenre(c.Context(), req)
 
 	if err != nil {
-		if errors.Is(err, service.ErrGenreAlreadyExist) {
+		if errors.Is(err, appErrors.ErrGenreAlreadyExists) {
 			return utils.ResponseError(
 				c,
 				fiber.StatusConflict,
-				"genre already exist2",
+				"genre already exists",
 				err,
 			)
 		}
@@ -169,14 +170,14 @@ func (h *GenreHandler) Update(c fiber.Ctx) error {
 
 	if err != nil {
 		switch {
-		case errors.Is(err, service.ErrGenreNotFound):
+		case errors.Is(err, appErrors.ErrGenreNotFound):
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
 				"genre not found",
 				err,
 			)
-		case errors.Is(err, service.ErrGenreAlreadyExist):
+		case errors.Is(err, appErrors.ErrGenreAlreadyExists):
 			return utils.ResponseError(
 				c,
 				fiber.StatusConflict,

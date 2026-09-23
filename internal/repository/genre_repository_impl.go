@@ -4,13 +4,9 @@ import (
 	"context"
 	"errors"
 
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/models"
 	"gorm.io/gorm"
-)
-
-var (
-	ErrGenreNotFound     = errors.New("genre not found")
-	ErrGenreAlreadyExist = errors.New("genre already exist")
 )
 
 type GenreRepositoryImpl struct {
@@ -41,7 +37,7 @@ func (r *GenreRepositoryImpl) FindGenreByID(ctx context.Context, id uint) (*mode
 	err := r.DB.WithContext(ctx).First(&genre, id).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, ErrGenreNotFound
+		return nil, appErrors.ErrGenreNotFound
 	}
 
 	if err != nil {
@@ -57,7 +53,7 @@ func (r *GenreRepositoryImpl) FindGenreByName(ctx context.Context, name string) 
 	err := r.DB.WithContext(ctx).Where("name = ?", name).First(&genre).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, ErrGenreNotFound
+		return nil, appErrors.ErrGenreNotFound
 	}
 
 	if err != nil {
@@ -79,7 +75,7 @@ func (r *GenreRepositoryImpl) DeleteGenre(ctx context.Context, id uint) error {
 	}
 
 	if result.RowsAffected == 0 {
-		return ErrGenreNotFound
+		return appErrors.ErrGenreNotFound
 	}
 
 	return nil

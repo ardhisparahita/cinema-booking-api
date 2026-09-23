@@ -7,12 +7,9 @@ import (
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/request"
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/response"
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/models"
 	"github.com/ardhisparahita/cinema-booking-api/internal/repository"
-)
-
-var (
-	ErrGenreAlreadyExist = errors.New("genre already exist")
 )
 
 type GenreServiceImpl struct {
@@ -30,10 +27,10 @@ func (s *GenreServiceImpl) CreateGenre(ctx context.Context, req request.CreateGe
 
 	_, err := s.Repo.FindGenreByName(ctx, name)
 	if err == nil {
-		return nil, ErrGenreAlreadyExist
+		return nil, appErrors.ErrGenreAlreadyExists
 	}
 
-	if !errors.Is(err, repository.ErrGenreNotFound) {
+	if !errors.Is(err, appErrors.ErrGenreNotFound) {
 		return nil, err
 	}
 
@@ -72,8 +69,8 @@ func (s *GenreServiceImpl) GetAllGenres(ctx context.Context) ([]response.GenreRe
 func (s *GenreServiceImpl) GetGenreByID(ctx context.Context, id uint) (*response.GenreResponse, error) {
 	genre, err := s.Repo.FindGenreByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, ErrGenreNotFound) {
-			return nil, ErrGenreNotFound
+		if errors.Is(err, appErrors.ErrGenreNotFound) {
+			return nil, appErrors.ErrGenreNotFound
 		}
 		return nil, err
 	}
@@ -89,18 +86,18 @@ func (s *GenreServiceImpl) UpdateGenre(ctx context.Context, id uint, req request
 
 	genre, err := s.Repo.FindGenreByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, repository.ErrGenreNotFound) {
-			return nil, ErrGenreNotFound
+		if errors.Is(err, appErrors.ErrGenreNotFound) {
+			return nil, appErrors.ErrGenreNotFound
 		}
 		return nil, err
 	}
 
 	existing, err := s.Repo.FindGenreByName(ctx, name)
 	if err == nil && existing.ID != genre.ID {
-		return nil, ErrGenreAlreadyExist
+		return nil, appErrors.ErrGenreAlreadyExists
 	}
 
-	if err != nil && !errors.Is(err, repository.ErrGenreNotFound) {
+	if err != nil && !errors.Is(err, appErrors.ErrGenreNotFound) {
 		return nil, err
 	}
 
@@ -118,8 +115,8 @@ func (s *GenreServiceImpl) UpdateGenre(ctx context.Context, id uint, req request
 
 func (s *GenreServiceImpl) DeleteGenre(ctx context.Context, id uint) error {
 	if _, err := s.Repo.FindGenreByID(ctx, id); err != nil {
-		if errors.Is(err, repository.ErrGenreNotFound) {
-			return ErrGenreNotFound
+		if errors.Is(err, appErrors.ErrGenreNotFound) {
+			return appErrors.ErrGenreNotFound
 		}
 
 		return err
