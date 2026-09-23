@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/request"
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/service"
 	"github.com/ardhisparahita/cinema-booking-api/middleware"
 	"github.com/ardhisparahita/cinema-booking-api/pkg/utils"
@@ -33,7 +34,7 @@ func (h *UserHandler) GetProfile(c fiber.Ctx) error {
 
 	res, err := h.UserService.GetProfile(c.Context(), id)
 	if err != nil {
-		if errors.Is(err, service.ErrUserNotFound) {
+		if errors.Is(err, appErrors.ErrUserNotFound) {
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
@@ -94,7 +95,7 @@ func (h *UserHandler) UpdateProfile(c fiber.Ctx) error {
 		req,
 	)
 	if err != nil {
-		if errors.Is(err, service.ErrUserNotFound) {
+		if errors.Is(err, appErrors.ErrUserNotFound) {
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
@@ -132,7 +133,7 @@ func (h *UserHandler) DeleteProfile(c fiber.Ctx) error {
 		c.Context(),
 		id,
 	); err != nil {
-		if errors.Is(err, service.ErrUserNotFound) {
+		if errors.Is(err, appErrors.ErrUserNotFound) {
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,

@@ -6,11 +6,8 @@ import (
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/request"
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/response"
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/repository"
-)
-
-var (
-	ErrUserNotFound = errors.New("user not found")
 )
 
 type UserServiceImpl struct {
@@ -27,8 +24,8 @@ func (s *UserServiceImpl) GetProfile(ctx context.Context, userID uint) (*respons
 	user, err := s.Repo.FindUserByID(ctx, userID)
 
 	if err != nil {
-		if errors.Is(err, ErrUserNotFound) {
-			return nil, ErrUserNotFound
+		if errors.Is(err, appErrors.ErrUserNotFound) {
+			return nil, appErrors.ErrUserNotFound
 		}
 		return nil, err
 	}
@@ -45,8 +42,8 @@ func (s *UserServiceImpl) GetProfile(ctx context.Context, userID uint) (*respons
 func (s *UserServiceImpl) UpdateProfile(ctx context.Context, userID uint, req request.UpdateUserRequest) (*response.UserResponse, error) {
 	user, err := s.Repo.FindUserByID(ctx, userID)
 	if err != nil {
-		if errors.Is(err, repository.ErrUserNotFound) {
-			return nil, ErrUserNotFound
+		if errors.Is(err, appErrors.ErrUserNotFound) {
+			return nil, appErrors.ErrUserNotFound
 		}
 
 		return nil, err
@@ -70,8 +67,8 @@ func (s *UserServiceImpl) UpdateProfile(ctx context.Context, userID uint, req re
 
 func (s *UserServiceImpl) DeleteProfile(ctx context.Context, userID uint) error {
 	if _, err := s.Repo.FindUserByID(ctx, userID); err != nil {
-		if errors.Is(err, repository.ErrUserNotFound) {
-			return ErrUserNotFound
+		if errors.Is(err, appErrors.ErrUserNotFound) {
+			return appErrors.ErrUserNotFound
 		}
 
 		return err

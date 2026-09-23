@@ -43,9 +43,9 @@ func NewAuthService(
 func (s *AuthServiceImpl) Register(ctx context.Context, req request.RegisterRequest) (*response.AuthResponse, error) {
 	_, err := s.repo.FindUserByEmail(ctx, req.Email)
 	if err == nil {
-		return nil, repository.ErrEmailAlreadyExists
+		return nil, appErrors.ErrEmailAlreadyExists
 	}
-	if !errors.Is(err, repository.ErrUserNotFound) {
+	if !errors.Is(err, appErrors.ErrUserNotFound) {
 		return nil, err
 	}
 
@@ -71,7 +71,7 @@ func (s *AuthServiceImpl) Register(ctx context.Context, req request.RegisterRequ
 func (s *AuthServiceImpl) Login(ctx context.Context, req request.LoginRequest) (*response.AuthResponse, error) {
 	user, err := s.repo.FindUserByEmail(ctx, req.Email)
 	if err != nil {
-		if errors.Is(err, repository.ErrUserNotFound) {
+		if errors.Is(err, appErrors.ErrUserNotFound) {
 			return nil, appErrors.ErrInvalidCredentials
 		}
 		return nil, err

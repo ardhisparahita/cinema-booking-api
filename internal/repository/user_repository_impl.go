@@ -5,16 +5,9 @@ import (
 	"errors"
 	"time"
 
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/models"
 	"gorm.io/gorm"
-)
-
-var (
-	ErrUserNotFound       = errors.New("user not found")
-	ErrEmailAlreadyExists = errors.New("email already exists")
-	ErrRefreshNotFound    = errors.New("refresh token not found")
-	ErrRefreshExpired     = errors.New("refresh token expired")
-	ErrRefreshRevoked     = errors.New("refresh token revoked")
 )
 
 type UserRepositoryImpl struct {
@@ -36,7 +29,7 @@ func (r *UserRepositoryImpl) FindUserByEmail(ctx context.Context, email string) 
 
 	err := r.DB.WithContext(ctx).Where("email = ?", email).First(&user).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, ErrUserNotFound
+		return nil, appErrors.ErrUserNotFound
 	}
 	if err != nil {
 		return nil, err
@@ -50,7 +43,7 @@ func (r *UserRepositoryImpl) FindUserByID(ctx context.Context, id uint) (*models
 
 	err := r.DB.WithContext(ctx).First(&user, id).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, ErrUserNotFound
+		return nil, appErrors.ErrUserNotFound
 	}
 	if err != nil {
 		return nil, err
@@ -68,16 +61,16 @@ func (r *UserRepositoryImpl) FindRefreshToken(ctx context.Context, TokenHash str
 
 	err := r.DB.WithContext(ctx).Where("token = ?", TokenHash).First(&token).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, ErrRefreshNotFound
+		return nil, appErrors.ErrRefreshNotFound
 	}
 	if err != nil {
 		return nil, err
 	}
 	if token.RevokedAt != nil {
-		return nil, ErrRefreshRevoked
+		return nil, appErrors.ErrRefreshRevoked
 	}
 	if !token.ExpiresAt.After(time.Now()) {
-		return nil, ErrRefreshExpired
+		return nil, appErrors.ErrRefreshExpired
 	}
 
 	return &token, nil
@@ -90,7 +83,7 @@ func (r *UserRepositoryImpl) RevokeRefreshToken(ctx context.Context, TokenHash s
 		return result.Error
 	}
 	if result.RowsAffected == 0 {
-		return ErrRefreshNotFound
+		return appErrors.ErrRefreshNotFound
 	}
 
 	return nil
@@ -109,7 +102,7 @@ func (r *UserRepositoryImpl) DeleteUser(ctx context.Context, id uint) error {
 		return result.Error
 	}
 	if result.RowsAffected == 0 {
-		return ErrUserNotFound
+		return appErrors.ErrUserNotFound
 	}
 
 	return nil
