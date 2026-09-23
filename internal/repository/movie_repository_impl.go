@@ -4,12 +4,9 @@ import (
 	"context"
 	"errors"
 
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/models"
 	"gorm.io/gorm"
-)
-
-var (
-	ErrMovieNotFound = errors.New("movie not found")
 )
 
 type MovieRepositoryImpl struct {
@@ -39,7 +36,7 @@ func (r *MovieRepositoryImpl) FindMovieByID(ctx context.Context, id uint) (*mode
 	err := r.DB.WithContext(ctx).Preload("MovieGenres").Preload("MovieGenres.Genre").First(&movie, id).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, ErrMovieNotFound
+		return nil, appErrors.ErrMovieNotFound
 	}
 
 	if err != nil {
@@ -68,7 +65,7 @@ func (r *MovieRepositoryImpl) DeleteMovie(ctx context.Context, id uint) error {
 	}
 
 	if result.RowsAffected == 0 {
-		return ErrMovieNotFound
+		return appErrors.ErrMovieNotFound
 	}
 
 	return nil

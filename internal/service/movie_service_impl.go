@@ -8,15 +8,10 @@ import (
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/request"
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/response"
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/models"
 	"github.com/ardhisparahita/cinema-booking-api/internal/repository"
 	"gorm.io/gorm"
-)
-
-var (
-	ErrMovieNotFound      = errors.New("movie not found")
-	ErrGenreNotFound      = errors.New("one or more genres not found")
-	ErrInvalidMovieRating = errors.New("invalid movie rating")
 )
 
 type MovieServiceImpl struct {
@@ -39,7 +34,7 @@ func (s *MovieServiceImpl) CreateMovie(ctx context.Context, req request.CreateMo
 	}
 
 	if !isValidMovieRating(req.Rating) {
-		return nil, ErrInvalidMovieRating
+		return nil, appErrors.ErrInvalidMovieRating
 	}
 
 	genres, err := s.Repo.FindGenresByIDs(ctx, req.GenreIDs)
@@ -48,7 +43,7 @@ func (s *MovieServiceImpl) CreateMovie(ctx context.Context, req request.CreateMo
 	}
 
 	if len(genres) != len(uniqueUint(req.GenreIDs)) {
-		return nil, ErrGenreNotFound
+		return nil, appErrors.ErrGenreNotFound
 	}
 
 	releaseDate, err := time.Parse("2006-01-02", req.ReleaseDate)
@@ -113,8 +108,8 @@ func (s *MovieServiceImpl) GetAllMovies(ctx context.Context) ([]response.MovieRe
 func (s *MovieServiceImpl) GetMovieByID(ctx context.Context, id uint) (*response.MovieResponse, error) {
 	movie, err := s.Repo.FindMovieByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, repository.ErrMovieNotFound) {
-			return nil, ErrMovieNotFound
+		if errors.Is(err, appErrors.ErrMovieNotFound) {
+			return nil, appErrors.ErrMovieNotFound
 		}
 		return nil, err
 	}
@@ -127,14 +122,14 @@ func (s *MovieServiceImpl) GetMovieByID(ctx context.Context, id uint) (*response
 func (s *MovieServiceImpl) UpdateMovie(ctx context.Context, id uint, req request.UpdateMovieRequest) (*response.MovieResponse, error) {
 	movie, err := s.Repo.FindMovieByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, repository.ErrMovieNotFound) {
-			return nil, ErrMovieNotFound
+		if errors.Is(err, appErrors.ErrMovieNotFound) {
+			return nil, appErrors.ErrMovieNotFound
 		}
 		return nil, err
 	}
 
 	if !isValidMovieRating(req.Rating) {
-		return nil, ErrInvalidMovieRating
+		return nil, appErrors.ErrInvalidMovieRating
 	}
 
 	genres, err := s.Repo.FindGenresByIDs(ctx, req.GenreIDs)
@@ -145,7 +140,7 @@ func (s *MovieServiceImpl) UpdateMovie(ctx context.Context, id uint, req request
 	uniqueGenreIDs := uniqueUint(req.GenreIDs)
 
 	if len(genres) != len(uniqueGenreIDs) {
-		return nil, ErrGenreNotFound
+		return nil, appErrors.ErrGenreNotFound
 	}
 
 	releaseDate, err := time.Parse("2006-01-02", req.ReleaseDate)
@@ -197,8 +192,8 @@ func (s *MovieServiceImpl) UpdateMovie(ctx context.Context, id uint, req request
 
 func (s *MovieServiceImpl) DeleteMovie(ctx context.Context, id uint) error {
 	if _, err := s.Repo.FindMovieByID(ctx, id); err != nil {
-		if errors.Is(err, repository.ErrMovieNotFound) {
-			return ErrMovieNotFound
+		if errors.Is(err, appErrors.ErrMovieNotFound) {
+			return appErrors.ErrMovieNotFound
 		}
 		return err
 	}

@@ -60,7 +60,7 @@ func (h *GenreHandler) GetByID(c fiber.Ctx) error {
 	res, err := h.GenreService.GetGenreByID(c.Context(), uint(id))
 
 	if err != nil {
-		if errors.Is(err, service.ErrGenreNotFound) {
+		if errors.Is(err, appErrors.ErrGenreNotFound) {
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
@@ -215,7 +215,7 @@ func (h *GenreHandler) Delete(c fiber.Ctx) error {
 	}
 
 	if err := h.GenreService.DeleteGenre(c.Context(), uint(id)); err != nil {
-		if errors.Is(err, service.ErrGenreNotFound) {
+		if errors.Is(err, appErrors.ErrGenreNotFound) {
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,

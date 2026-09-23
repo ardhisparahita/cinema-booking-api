@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/request"
+	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/service"
 	"github.com/ardhisparahita/cinema-booking-api/pkg/utils"
 	"github.com/gofiber/fiber/v3"
@@ -52,7 +53,7 @@ func (h *MovieHandler) GetByID(c fiber.Ctx) error {
 
 	res, err := h.MovieService.GetMovieByID(c.Context(), uint(id))
 	if err != nil {
-		if errors.Is(err, service.ErrMovieNotFound) {
+		if errors.Is(err, appErrors.ErrMovieNotFound) {
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
@@ -102,14 +103,14 @@ func (h *MovieHandler) Create(c fiber.Ctx) error {
 
 	if err != nil {
 		switch {
-		case errors.Is(err, service.ErrGenreNotFound):
+		case errors.Is(err, appErrors.ErrGenreNotFound):
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
 				"one or more genres not found",
 				err,
 			)
-		case errors.Is(err, service.ErrInvalidMovieRating):
+		case errors.Is(err, appErrors.ErrInvalidMovieRating):
 			return utils.ResponseError(
 				c,
 				fiber.StatusBadRequest,
@@ -169,7 +170,7 @@ func (h *MovieHandler) Update(c fiber.Ctx) error {
 	res, err := h.MovieService.UpdateMovie(c.Context(), uint(id), req)
 	if err != nil {
 		switch {
-		case errors.Is(err, service.ErrMovieNotFound):
+		case errors.Is(err, appErrors.ErrMovieNotFound):
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
@@ -177,14 +178,14 @@ func (h *MovieHandler) Update(c fiber.Ctx) error {
 				err,
 			)
 
-		case errors.Is(err, service.ErrGenreNotFound):
+		case errors.Is(err, appErrors.ErrGenreNotFound):
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
 				"one or more genres not found",
 				err,
 			)
-		case errors.Is(err, service.ErrInvalidMovieRating):
+		case errors.Is(err, appErrors.ErrInvalidMovieRating):
 			return utils.ResponseError(
 				c,
 				fiber.StatusBadRequest,
@@ -222,7 +223,7 @@ func (h *MovieHandler) Delete(c fiber.Ctx) error {
 	}
 
 	if err := h.MovieService.DeleteMovie(c.Context(), uint(id)); err != nil {
-		if errors.Is(err, service.ErrMovieNotFound) {
+		if errors.Is(err, appErrors.ErrMovieNotFound) {
 			return utils.ResponseError(
 				c,
 				fiber.StatusNotFound,
