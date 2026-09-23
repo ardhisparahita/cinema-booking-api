@@ -9,7 +9,7 @@ import (
 
 type TheaterService interface {
 	CreateTheater(ctx context.Context, req request.CreateAndUpdateTheaterRequest) (*response.TheaterResponse, error)
-	GetAllTheaters(ctx context.Context) ([]response.TheaterResponse, error)
+	GetAllTheaters(ctx context.Context, page, limit int) ([]response.TheaterResponse, int64, error)
 	GetTheaterByID(ctx context.Context, id uint) (*response.TheaterResponse, error)
 	UpdateTheater(ctx context.Context, id uint, req request.CreateAndUpdateTheaterRequest) (*response.TheaterResponse, error)
 	DeleteTheater(ctx context.Context, id uint) error

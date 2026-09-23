@@ -36,10 +36,10 @@ func (s *TheaterServiceImpl) CreateTheater(ctx context.Context, req request.Crea
 	return toTheaterResponse(theater), nil
 }
 
-func (s *TheaterServiceImpl) GetAllTheaters(ctx context.Context) ([]response.TheaterResponse, error) {
-	theaters, err := s.Repo.FindAllTheater(ctx)
+func (s *TheaterServiceImpl) GetAllTheaters(ctx context.Context, page, limit int) ([]response.TheaterResponse, int64, error) {
+	theaters, total, err := s.Repo.FindAllTheater(ctx, page, limit)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	result := make([]response.TheaterResponse, 0, len(theaters))
@@ -48,7 +48,7 @@ func (s *TheaterServiceImpl) GetAllTheaters(ctx context.Context) ([]response.The
 		result = append(result, *toTheaterResponse(&theater))
 	}
 
-	return result, nil
+	return result, total, nil
 }
 
 func (s *TheaterServiceImpl) GetTheaterByID(ctx context.Context, id uint) (*response.TheaterResponse, error) {

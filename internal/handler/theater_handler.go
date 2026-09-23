@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/request"
+	"github.com/ardhisparahita/cinema-booking-api/internal/dto/response"
 	appErrors "github.com/ardhisparahita/cinema-booking-api/internal/errors"
 	"github.com/ardhisparahita/cinema-booking-api/internal/service"
 	"github.com/ardhisparahita/cinema-booking-api/pkg/utils"
@@ -22,7 +23,20 @@ func NewTheaterHandler(service service.TheaterService) *TheaterHandler {
 }
 
 func (h *TheaterHandler) GetAll(c fiber.Ctx) error {
-	res, err := h.Service.GetAllTheaters(c.Context())
+	var query request.PaginationRequest
+
+	if err := c.Bind().Query(&query); err != nil {
+		return utils.ResponseError(
+			c,
+			fiber.StatusBadRequest,
+			"invalid pagination parameter",
+			err,
+		)
+	}
+
+	pagination := utils.GetPagination(query.Page, query.Limit)
+
+	res, total, err := h.Service.GetAllTheaters(c.Context(), pagination.Page, pagination.Limit)
 	if err != nil {
 		return utils.ResponseError(
 			c,
@@ -32,11 +46,24 @@ func (h *TheaterHandler) GetAll(c fiber.Ctx) error {
 		)
 	}
 
+	data := struct {
+		Data       []response.TheaterResponse  `json:"data"`
+		Pagination response.PaginationResponse `json:"pagination"`
+	}{
+		Data: res,
+		Pagination: response.PaginationResponse{
+			Page:       pagination.Page,
+			Limit:      pagination.Limit,
+			Total:      total,
+			TotalPages: utils.GetTotalPage(total, pagination.Limit),
+		},
+	}
+
 	return utils.ResponseSuccess(
 		c,
 		fiber.StatusOK,
 		"theaters retrieved successfully",
-		res,
+		data,
 	)
 }
 

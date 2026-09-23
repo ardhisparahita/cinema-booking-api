@@ -23,12 +23,21 @@ func (r *TheaterRepositoryImpl) CreateTheater(ctx context.Context, theater *mode
 	return r.DB.WithContext(ctx).Create(theater).Error
 }
 
-func (r *TheaterRepositoryImpl) FindAllTheater(ctx context.Context) ([]models.Theater, error) {
+func (r *TheaterRepositoryImpl) FindAllTheater(ctx context.Context, page, limit int) ([]models.Theater, int64, error) {
 	var theaters []models.Theater
 
-	err := r.DB.WithContext(ctx).Order("name ASC").Find(&theaters).Error
+	var total int64
 
-	return theaters, err
+	query := r.DB.WithContext(ctx).Model(&models.Theater{})
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * limit
+
+	err := r.DB.WithContext(ctx).Order("name ASC").Find(&theaters).Limit(limit).Offset(offset).Error
+
+	return theaters, total, err
 }
 
 func (r *TheaterRepositoryImpl) FindTheaterByID(ctx context.Context, id uint) (*models.Theater, error) {
