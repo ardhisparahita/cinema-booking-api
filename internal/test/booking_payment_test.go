@@ -541,18 +541,8 @@ func TestCancelBookingFlow(t *testing.T) {
 func TestExpiredBookingFlow(t *testing.T) {
 	deps := SetupTestDependencies(t)
 	data := createBookingTestData(t, deps.DB)
+
 	ctx := context.Background()
-
-	shortTTL := 2 * time.Second
-
-	bookingService := service.NewBookingService(
-		deps.BookingRepo,
-		repository.NewShowtimeRepository(deps.DB),
-		repository.NewSeatRepository(deps.DB),
-		deps.DB,
-		deps.SeatLocker,
-		shortTTL,
-	)
 
 	seatID := data.Seats[0].ID
 
@@ -561,75 +551,397 @@ func TestExpiredBookingFlow(t *testing.T) {
 		SeatIDs:    []uint{seatID},
 	}
 
-	booking, err := bookingService.CreateBooking(ctx, data.User.ID, req)
+	// Create booking with the normal TTL.
+	// We will manually make expires_at expired in the database
+	// instead of waiting for the Redis TTL.
+	booking, err := deps.BookingService.CreateBooking(
+		ctx,
+		data.User.ID,
+		req,
+	)
 	if err != nil {
 		t.Fatalf("create booking failed: %v", err)
 	}
 
 	if booking.Status != "pending" {
-		t.Fatalf("expected pending, got %s", booking.Status)
+		t.Fatalf(
+			"expected booking status pending, got %s",
+			booking.Status,
+		)
 	}
 
 	if booking.ExpiresAt == nil {
-		t.Fatal("expires_at should not be nil")
+		t.Fatal("booking expires_at should not be nil")
 	}
 
-	key := fmt.Sprintf("booking:showtime:%d:seat:%d", data.Showtime.ID, seatID)
+	key := fmt.Sprintf(
+		"booking:showtime:%d:seat:%d",
+		data.Showtime.ID,
+		seatID,
+	)
+
+	// ---------------------------------------------------------
+	// 1. Verify Redis lock exists after booking creation.
+	// ---------------------------------------------------------
+
 	exists, err := deps.RedisClient.Exists(ctx, key).Result()
 	if err != nil {
-		t.Fatalf("failed checking redis lock: %v", err)
+		t.Fatalf(
+			"failed checking redis lock after booking creation: %v",
+			err,
+		)
 	}
 
 	if exists != 1 {
-		t.Fatal("expected redis lock to exist")
+		t.Fatal("expected redis seat lock to exist after booking creation")
 	}
 
-	time.Sleep(shortTTL + 1*time.Second)
+	// ---------------------------------------------------------
+	// 2. Verify the Redis lock belongs to this booking.
+	// ---------------------------------------------------------
+
+	redisValue, err := deps.RedisClient.Get(ctx, key).Result()
+	if err != nil {
+		t.Fatalf(
+			"failed getting redis lock value: %v",
+			err,
+		)
+	}
+
+	if redisValue != booking.BookingCode {
+		t.Fatalf(
+			"expected redis lock value %s, got %s",
+			booking.BookingCode,
+			redisValue,
+		)
+	}
+
+	// ---------------------------------------------------------
+	// 3. Manually make the booking expired in the database.
+	//
+	// Important:
+	// We DO NOT wait for Redis TTL to expire.
+	//
+	// This allows us to verify that ExpireBooking() itself
+	// is responsible for unlocking the Redis seat.
+	// ---------------------------------------------------------
+
+	expiredAt := time.Now().Add(-1 * time.Minute)
+
+	err = deps.DB.Model(&models.Booking{}).
+		Where("id = ?", booking.ID).
+		Update("expires_at", expiredAt).
+		Error
+
+	if err != nil {
+		t.Fatalf(
+			"failed to update booking expires_at: %v",
+			err,
+		)
+	}
+
+	// ---------------------------------------------------------
+	// 4. Verify booking is still pending before expiry worker.
+	// ---------------------------------------------------------
+
+	var beforeExpire models.Booking
+
+	err = deps.DB.
+		Where("id = ?", booking.ID).
+		First(&beforeExpire).
+		Error
+
+	if err != nil {
+		t.Fatalf(
+			"failed to get booking before expiry: %v",
+			err,
+		)
+	}
+
+	if beforeExpire.Status != "pending" {
+		t.Fatalf(
+			"expected booking status pending before expiry, got %s",
+			beforeExpire.Status,
+		)
+	}
+
+	if beforeExpire.ExpiresAt == nil {
+		t.Fatal("expires_at should not be nil before expiry")
+	}
+
+	if beforeExpire.ExpiresAt.After(time.Now()) {
+		t.Fatalf(
+			"expected booking to be expired, expires_at=%v",
+			beforeExpire.ExpiresAt,
+		)
+	}
+
+	// ---------------------------------------------------------
+	// 5. IMPORTANT:
+	// Redis lock MUST still exist before ExpireBooking().
+	//
+	// If this is already 0, the test would not actually prove
+	// that ExpireBooking() unlocks Redis.
+	// ---------------------------------------------------------
 
 	exists, err = deps.RedisClient.Exists(ctx, key).Result()
 	if err != nil {
-		t.Fatalf("failed checking redis after ttl: %v", err)
+		t.Fatalf(
+			"failed checking redis lock before ExpireBooking: %v",
+			err,
+		)
 	}
 
-	if exists != 0 {
-		t.Fatal("redis lock should have expired")
+	if exists != 1 {
+		t.Fatal(
+			"redis seat lock should still exist before ExpireBooking",
+		)
 	}
 
-	err = bookingService.ExpireBooking(ctx)
+	// ---------------------------------------------------------
+	// 6. Run ExpireBooking().
+	// ---------------------------------------------------------
+
+	err = deps.BookingService.ExpireBooking(ctx)
 	if err != nil {
-		t.Fatalf("expire booking failed: %v", err)
+		t.Fatalf(
+			"expire booking failed: %v",
+			err,
+		)
 	}
 
-	expiredBooking, err := bookingService.GetBookingByID(ctx, data.User.ID, booking.ID)
+	// ---------------------------------------------------------
+	// 7. Verify booking status became expired.
+	// ---------------------------------------------------------
+
+	expiredBooking, err := deps.BookingService.GetBookingByID(
+		ctx,
+		data.User.ID,
+		booking.ID,
+	)
 	if err != nil {
-		t.Fatalf("get expired booking failed: %v", err)
+		t.Fatalf(
+			"get expired booking failed: %v",
+			err,
+		)
 	}
 
 	if expiredBooking.Status != "expired" {
-		t.Fatalf("expected expired, got: %s", expiredBooking.Status)
+		t.Fatalf(
+			"expected booking status expired, got %s",
+			expiredBooking.Status,
+		)
 	}
 
+	// ---------------------------------------------------------
+	// 8. Verify booking seats were deleted.
+	// ---------------------------------------------------------
+
 	var seatCount int64
-	err = deps.DB.Model(&models.BookingSeat{}).Where("booking_id = ?", booking.ID).Count(&seatCount).Error
+
+	err = deps.DB.
+		Model(&models.BookingSeat{}).
+		Where("booking_id = ?", booking.ID).
+		Count(&seatCount).
+		Error
 
 	if err != nil {
-		t.Fatalf("failed counting booking seats: %v", err)
+		t.Fatalf(
+			"failed counting booking seats after expiry: %v",
+			err,
+		)
 	}
 
 	if seatCount != 0 {
-		t.Fatalf("expected 0 booking seats after expiry, got: %d", seatCount)
+		t.Fatalf(
+			"expected 0 booking seats after expiry, got %d",
+			seatCount,
+		)
 	}
 
-	booking2, err := bookingService.CreateBooking(ctx, data.User.ID, req)
+	// ---------------------------------------------------------
+	// 9. MOST IMPORTANT:
+	// Verify ExpireBooking() removed the Redis lock.
+	// ---------------------------------------------------------
+
+	exists, err = deps.RedisClient.Exists(ctx, key).Result()
 	if err != nil {
-		t.Fatalf("create booking after expiry failed: %v", err)
+		t.Fatalf(
+			"failed checking redis lock after ExpireBooking: %v",
+			err,
+		)
+	}
+
+	if exists != 0 {
+		t.Fatal(
+			"redis seat lock still exists after booking expiry",
+		)
+	}
+
+	// ---------------------------------------------------------
+	// 10. Verify the seat can be booked again.
+	//
+	// This proves the entire expiry flow works:
+	//
+	// DB booking      -> expired
+	// booking_seats   -> deleted
+	// Redis lock      -> deleted
+	// seat            -> available again
+	// ---------------------------------------------------------
+
+	booking2, err := deps.BookingService.CreateBooking(
+		ctx,
+		data.User.ID,
+		req,
+	)
+	if err != nil {
+		t.Fatalf(
+			"create booking after expiry failed: %v",
+			err,
+		)
 	}
 
 	if booking2.Status != "pending" {
-		t.Fatalf("expected pending booking, got %s", booking2.Status)
+		t.Fatalf(
+			"expected second booking status pending, got %s",
+			booking2.Status,
+		)
 	}
 
+	if booking2.ID == booking.ID {
+		t.Fatalf(
+			"expected a new booking ID, got the same ID %d",
+			booking2.ID,
+		)
+	}
+
+	// ---------------------------------------------------------
+	// 11. Verify the new booking has a new Redis lock.
+	// ---------------------------------------------------------
+
+	exists, err = deps.RedisClient.Exists(ctx, key).Result()
+	if err != nil {
+		t.Fatalf(
+			"failed checking redis lock for second booking: %v",
+			err,
+		)
+	}
+
+	if exists != 1 {
+		t.Fatal(
+			"expected redis seat lock to exist for second booking",
+		)
+	}
+
+	redisValue, err = deps.RedisClient.Get(ctx, key).Result()
+	if err != nil {
+		t.Fatalf(
+			"failed getting redis lock for second booking: %v",
+			err,
+		)
+	}
+
+	if redisValue != booking2.BookingCode {
+		t.Fatalf(
+			"expected redis lock value %s for second booking, got %s",
+			booking2.BookingCode,
+			redisValue,
+		)
+	}
 }
+
+// func TestExpiredBookingFlow(t *testing.T) {
+// 	deps := SetupTestDependencies(t)
+// 	data := createBookingTestData(t, deps.DB)
+// 	ctx := context.Background()
+
+// 	shortTTL := 2 * time.Second
+
+// 	bookingService := service.NewBookingService(
+// 		deps.BookingRepo,
+// 		repository.NewShowtimeRepository(deps.DB),
+// 		repository.NewSeatRepository(deps.DB),
+// 		deps.DB,
+// 		deps.SeatLocker,
+// 		shortTTL,
+// 	)
+
+// 	seatID := data.Seats[0].ID
+
+// 	req := request.CreateBookingRequest{
+// 		ShowtimeID: data.Showtime.ID,
+// 		SeatIDs:    []uint{seatID},
+// 	}
+
+// 	booking, err := bookingService.CreateBooking(ctx, data.User.ID, req)
+// 	if err != nil {
+// 		t.Fatalf("create booking failed: %v", err)
+// 	}
+
+// 	if booking.Status != "pending" {
+// 		t.Fatalf("expected pending, got %s", booking.Status)
+// 	}
+
+// 	if booking.ExpiresAt == nil {
+// 		t.Fatal("expires_at should not be nil")
+// 	}
+
+// 	key := fmt.Sprintf("booking:showtime:%d:seat:%d", data.Showtime.ID, seatID)
+// 	exists, err := deps.RedisClient.Exists(ctx, key).Result()
+// 	if err != nil {
+// 		t.Fatalf("failed checking redis lock: %v", err)
+// 	}
+
+// 	if exists != 1 {
+// 		t.Fatal("expected redis lock to exist")
+// 	}
+
+// 	time.Sleep(shortTTL + 1*time.Second)
+
+// 	exists, err = deps.RedisClient.Exists(ctx, key).Result()
+// 	if err != nil {
+// 		t.Fatalf("failed checking redis after ttl: %v", err)
+// 	}
+
+// 	if exists != 0 {
+// 		t.Fatal("redis lock should have expired")
+// 	}
+
+// 	err = bookingService.ExpireBooking(ctx)
+// 	if err != nil {
+// 		t.Fatalf("expire booking failed: %v", err)
+// 	}
+
+// 	expiredBooking, err := bookingService.GetBookingByID(ctx, data.User.ID, booking.ID)
+// 	if err != nil {
+// 		t.Fatalf("get expired booking failed: %v", err)
+// 	}
+
+// 	if expiredBooking.Status != "expired" {
+// 		t.Fatalf("expected expired, got: %s", expiredBooking.Status)
+// 	}
+
+// 	var seatCount int64
+// 	err = deps.DB.Model(&models.BookingSeat{}).Where("booking_id = ?", booking.ID).Count(&seatCount).Error
+
+// 	if err != nil {
+// 		t.Fatalf("failed counting booking seats: %v", err)
+// 	}
+
+// 	if seatCount != 0 {
+// 		t.Fatalf("expected 0 booking seats after expiry, got: %d", seatCount)
+// 	}
+
+// 	booking2, err := bookingService.CreateBooking(ctx, data.User.ID, req)
+// 	if err != nil {
+// 		t.Fatalf("create booking after expiry failed: %v", err)
+// 	}
+
+// 	if booking2.Status != "pending" {
+// 		t.Fatalf("expected pending booking, got %s", booking2.Status)
+// 	}
+
+// }
 
 func TestConcurrentCreatePayment(t *testing.T) {
 	deps := SetupTestDependencies(t)

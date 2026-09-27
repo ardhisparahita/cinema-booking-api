@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"os"
 	"strconv"
 	"time"
@@ -13,40 +13,70 @@ import (
 	"github.com/ardhisparahita/cinema-booking-api/internal/seeders"
 	"github.com/ardhisparahita/cinema-booking-api/internal/service"
 	"github.com/ardhisparahita/cinema-booking-api/internal/worker"
+	appMiddleware "github.com/ardhisparahita/cinema-booking-api/middleware"
 	"github.com/ardhisparahita/cinema-booking-api/pkg/config"
 	"github.com/ardhisparahita/cinema-booking-api/pkg/database"
 	"github.com/ardhisparahita/cinema-booking-api/pkg/jwt"
+	"github.com/ardhisparahita/cinema-booking-api/pkg/logger"
 	"github.com/ardhisparahita/cinema-booking-api/pkg/utils"
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/requestid"
+
+	recoverer "github.com/gofiber/fiber/v3/middleware/recover"
 
 	redisstore "github.com/ardhisparahita/cinema-booking-api/pkg/redis"
 )
 
 func main() {
+	appLogger := logger.New()
+	slog.SetDefault(appLogger)
+
 	config.LoadEnv()
+
+	appLogger.Info("application starting")
 
 	db, err := database.ConnectDB()
 	if err != nil {
-		log.Fatal(err)
+		appLogger.Error(
+			"failed to connect database",
+			"error", err,
+		)
+		os.Exit(1)
 	}
 
 	if err := seeders.SeedAdmin(db); err != nil {
-		log.Fatalf("failed run seeder admin: %v", err)
+		appLogger.Error(
+			"failed to run admin seeder",
+			"error", err,
+		)
+		os.Exit(1)
 	}
 
 	accessMinutes, err := strconv.Atoi(os.Getenv("ACCESS_TOKEN_MINUTES"))
 	if err != nil {
-		log.Fatal("invalid ACCESS_TOKEN_MINUTES")
+		appLogger.Error(
+			"invalid ACCESS_TOKEN_MINUTES",
+			"error", err,
+		)
+		os.Exit(1)
 	}
 
 	refreshDays, err := strconv.Atoi(os.Getenv("REFRESH_TOKEN_DAYS"))
 	if err != nil {
-		log.Fatal("invalid REFRESH_TOKEN_DAYS")
+		appLogger.Error(
+			"invalid REFRESH_TOKEN_DAYS",
+			"error", err,
+		)
+		os.Exit(1)
 	}
 
 	seatLockMinutes, err := strconv.Atoi(os.Getenv("SEAT_LOCK_MINUTES"))
 	if err != nil {
-		log.Fatal("invalid SEAT_LOCK_MINUTES")
+		appLogger.Error(
+			"invalid SEAT_LOCK_MINUTES",
+			"error", err,
+		)
+		os.Exit(1)
 	}
 
 	jwtManager := jwt.NewManager(
@@ -60,7 +90,11 @@ func main() {
 
 	redisDB, err := strconv.Atoi(os.Getenv("REDIS_DB"))
 	if err != nil {
-		log.Fatal("invalid REDIS_DB")
+		appLogger.Error(
+			"invalid REDIS_DB",
+			"error", err,
+		)
+		os.Exit(1)
 	}
 
 	redisClient, err := redisstore.NewClient(
@@ -69,17 +103,31 @@ func main() {
 		redisDB,
 	)
 	if err != nil {
-		log.Fatal(err)
+		appLogger.Error(
+			"failed to connect redis",
+			"error", err,
+			"address", os.Getenv("REDIS_ADDR"),
+		)
+		os.Exit(1)
 	}
 
 	defer redisClient.Close()
 
 	seatLocker := redisstore.NewSeatLocker(redisClient)
-	log.Println("Redis connected successfully")
+	appLogger.Info(
+		"redis connected",
+		"address", os.Getenv("REDIS_ADDR"),
+		"db", redisDB,
+	)
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: utils.ErrorHandler,
 	})
+
+	app.Use(recoverer.New())
+
+	app.Use(requestid.New())
+	app.Use(appMiddleware.RequestLogger(appLogger))
 
 	userRepo := repository.NewUserRepository(db)
 	genreRepo := repository.NewGenreRepository(db)
@@ -136,5 +184,16 @@ func main() {
 
 	go bookingExpiryWorker.Start(context.Background())
 
-	log.Fatal(app.Listen(":3000"))
+	appLogger.Info(
+		"server starting",
+		"address", "3000",
+	)
+
+	if err := app.Listen(":3000"); err != nil {
+		appLogger.Error(
+			"server stopped",
+			"error", err,
+		)
+		os.Exit(1)
+	}
 }

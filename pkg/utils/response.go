@@ -2,10 +2,12 @@ package utils
 
 import (
 	"errors"
+	"log/slog"
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/response"
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/requestid"
 )
 
 func ResponseSuccess(c fiber.Ctx, code int, message string, data any) error {
@@ -18,8 +20,8 @@ func ResponseSuccess(c fiber.Ctx, code int, message string, data any) error {
 }
 
 func ResponseError(c fiber.Ctx, code int, message string, err error) error {
-
 	var validationErrs validator.ValidationErrors
+
 	if errors.As(err, &validationErrs) {
 		return c.Status(fiber.StatusBadRequest).JSON(response.WebResponse{
 			Code:    fiber.StatusBadRequest,
@@ -29,15 +31,31 @@ func ResponseError(c fiber.Ctx, code int, message string, err error) error {
 		})
 	}
 
-	errData := ""
+	loggerAttrs := []any{
+		"request_id", requestid.FromContext(c),
+		"method", c.Method(),
+		"path", c.Path(),
+		"status", code,
+		"message", message,
+	}
+
 	if err != nil {
-		errData = err.Error()
+		loggerAttrs = append(loggerAttrs, "error", err)
+	}
+
+	switch {
+	case code >= 500:
+		slog.Error("api error", loggerAttrs...)
+	case code >= 400:
+		slog.Warn("api error", loggerAttrs...)
+	default:
+		slog.Info("api error", loggerAttrs...)
 	}
 
 	return c.Status(code).JSON(response.WebResponse{
 		Code:    code,
 		Status:  "Error",
 		Message: message,
-		Data:    errData,
+		Data:    nil,
 	})
 }
