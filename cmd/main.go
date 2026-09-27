@@ -120,9 +120,14 @@ func main() {
 		"db", redisDB,
 	)
 
+	healthHandler := handler.NewHealthHandler(db, redisClient)
+
 	app := fiber.New(fiber.Config{
 		ErrorHandler: utils.ErrorHandler,
 	})
+
+	app.Get("/livez", healthHandler.Liveness)
+	app.Get("/readyz", healthHandler.Readiness)
 
 	app.Use(recoverer.New())
 
