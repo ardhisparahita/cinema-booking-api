@@ -29,6 +29,7 @@ import (
 
 	redisstore "github.com/ardhisparahita/cinema-booking-api/pkg/redis"
 	fiberotel "github.com/gofiber/contrib/v3/otel"
+	fiberprometheus "github.com/gofiber/contrib/v3/prometheus"
 )
 
 func main() {
@@ -198,6 +199,10 @@ func main() {
 	app.Use(fiberotel.Middleware(
 		fiberotel.WithTraceResponseHeader("X-Trace-Id"),
 	))
+
+	app.Use(fiberprometheus.New(fiberprometheus.Config{
+		ServiceName: "cinema-booking-api",
+	}))
 
 	app.Use(appMiddleware.RequestLogger(appLogger))
 
