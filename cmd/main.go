@@ -18,13 +18,17 @@ import (
 	"github.com/ardhisparahita/cinema-booking-api/pkg/database"
 	"github.com/ardhisparahita/cinema-booking-api/pkg/jwt"
 	"github.com/ardhisparahita/cinema-booking-api/pkg/logger"
+	"github.com/ardhisparahita/cinema-booking-api/pkg/telemetry"
 	"github.com/ardhisparahita/cinema-booking-api/pkg/utils"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/requestid"
+	"github.com/redis/go-redis/extra/redisotel/v9"
+	"github.com/uptrace/opentelemetry-go-extra/otelgorm"
 
 	recoverer "github.com/gofiber/fiber/v3/middleware/recover"
 
 	redisstore "github.com/ardhisparahita/cinema-booking-api/pkg/redis"
+	fiberotel "github.com/gofiber/contrib/v3/otel"
 )
 
 func main() {
@@ -33,12 +37,65 @@ func main() {
 
 	config.LoadEnv()
 
+	otelServiceName := os.Getenv("OTEL_SERVICE_NAME")
+	if otelServiceName == "" {
+		otelServiceName = "cinema-booking-api"
+	}
+
+	otelEndpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	if otelEndpoint == "" {
+		otelEndpoint = "127.0.0.1:4317"
+	}
+
+	otelShutdown, err := telemetry.InitTracer(
+		context.Background(),
+		otelServiceName,
+		otelEndpoint,
+	)
+	if err != nil {
+		appLogger.Error(
+			"failed to initialize OpenTelemetry",
+			"error", err,
+		)
+		os.Exit(1)
+	}
+
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(
+			context.Background(),
+			5*time.Second,
+		)
+		defer cancel()
+
+		if err := otelShutdown(shutdownCtx); err != nil {
+			appLogger.Error(
+				"failed to shutdown Opentelemetry",
+				"error", err,
+			)
+		}
+	}()
+
+	appLogger.Info(
+		"OpenTelemetry initialized",
+		"service", otelServiceName,
+		"endpoint", otelEndpoint,
+	)
+
 	appLogger.Info("application starting")
 
 	db, err := database.ConnectDB()
+
 	if err != nil {
 		appLogger.Error(
 			"failed to connect database",
+			"error", err,
+		)
+		os.Exit(1)
+	}
+
+	if err := db.Use(otelgorm.NewPlugin()); err != nil {
+		appLogger.Error(
+			"failed to initialize GORM OpenTelemetry plugin",
 			"error", err,
 		)
 		os.Exit(1)
@@ -102,11 +159,20 @@ func main() {
 		os.Getenv("REDIS_PASSWORD"),
 		redisDB,
 	)
+
 	if err != nil {
 		appLogger.Error(
 			"failed to connect redis",
 			"error", err,
 			"address", os.Getenv("REDIS_ADDR"),
+		)
+		os.Exit(1)
+	}
+
+	if err := redisotel.InstrumentTracing(redisClient); err != nil {
+		appLogger.Error(
+			"failed to initialize Redis OpenTelemtry tracing",
+			"error", err,
 		)
 		os.Exit(1)
 	}
@@ -126,13 +192,17 @@ func main() {
 		ErrorHandler: utils.ErrorHandler,
 	})
 
+	app.Use(recoverer.New())
+	app.Use(requestid.New())
+
+	app.Use(fiberotel.Middleware(
+		fiberotel.WithTraceResponseHeader("X-Trace-Id"),
+	))
+
+	app.Use(appMiddleware.RequestLogger(appLogger))
+
 	app.Get("/livez", healthHandler.Liveness)
 	app.Get("/readyz", healthHandler.Readiness)
-
-	app.Use(recoverer.New())
-
-	app.Use(requestid.New())
-	app.Use(appMiddleware.RequestLogger(appLogger))
 
 	userRepo := repository.NewUserRepository(db)
 	genreRepo := repository.NewGenreRepository(db)

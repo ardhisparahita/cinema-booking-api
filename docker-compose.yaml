@@ -16,5 +16,13 @@ services:
     ports:
       - "${REDIS_PORT}:6379"
 
+  jaeger:
+    image: cr.jaegertracing.io/jaegertracing/jaeger:2.21.0
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+    restart: unless-stopped
+
 volumes:
   mysql_data:

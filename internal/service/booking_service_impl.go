@@ -15,9 +15,12 @@ import (
 	"github.com/ardhisparahita/cinema-booking-api/internal/repository"
 	redisstore "github.com/ardhisparahita/cinema-booking-api/pkg/redis"
 	"github.com/go-sql-driver/mysql"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
 )
-
 
 type BookingServiceImpl struct {
 	Repo         repository.BookingRepository
@@ -26,6 +29,7 @@ type BookingServiceImpl struct {
 	DB           *gorm.DB
 	SeatLocker   redisstore.SeatLocker
 	SeatLockTTL  time.Duration
+	Tracer       trace.Tracer
 }
 
 func NewBookingService(repo repository.BookingRepository, showtimeRepo repository.ShowtimeRepository, seatRepo repository.SeatRepository, db *gorm.DB, seatLocker redisstore.SeatLocker, seatLockTTL time.Duration) BookingService {
@@ -36,85 +40,197 @@ func NewBookingService(repo repository.BookingRepository, showtimeRepo repositor
 		DB:           db,
 		SeatLocker:   seatLocker,
 		SeatLockTTL:  seatLockTTL,
+		Tracer:       otel.Tracer("cinema-booking-api"),
 	}
 }
 
-func (s *BookingServiceImpl) CreateBooking(ctx context.Context, userID uint, req request.CreateBookingRequest) (*response.BookingResponse, error) {
+func (s *BookingServiceImpl) CreateBooking(
+	ctx context.Context,
+	userID uint,
+	req request.CreateBookingRequest,
+) (*response.BookingResponse, error) {
+
+	ctx, span := s.Tracer.Start(
+		ctx,
+		"BookingService.CreateBooking",
+	)
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.Int64("user.id", int64(userID)),
+		attribute.Int64("showtime.id", int64(req.ShowtimeID)),
+		attribute.Int("booking.seat_count", len(req.SeatIDs)),
+	)
+
+	recordSpanError := func(err error, message string) error {
+		if err != nil {
+			span.RecordError(err)
+		}
+
+		span.SetStatus(codes.Error, message)
+
+		return err
+	}
+
 	if len(req.SeatIDs) == 0 {
-		return nil, appErrors.ErrInvalidBookingSeats
+		return nil, recordSpanError(
+			appErrors.ErrInvalidBookingSeats,
+			"invalid booking seats",
+		)
 	}
 
 	seatIDs := uniqueUint(req.SeatIDs)
+
 	if len(seatIDs) != len(req.SeatIDs) {
-		return nil, appErrors.ErrDuplicateSeat
+		return nil, recordSpanError(
+			appErrors.ErrDuplicateSeat,
+			"duplicate seat selected",
+		)
 	}
 
-	showtime, err := s.ShowtimeRepo.FindShowtimeByID(ctx, req.ShowtimeID)
+	showtime, err := s.ShowtimeRepo.FindShowtimeByID(
+		ctx,
+		req.ShowtimeID,
+	)
 	if err != nil {
 		if errors.Is(err, appErrors.ErrShowtimeNotFound) {
-			return nil, appErrors.ErrShowtimeNotFound
+			return nil, recordSpanError(
+				appErrors.ErrShowtimeNotFound,
+				"showtime not found",
+			)
 		}
-		return nil, err
+
+		return nil, recordSpanError(
+			err,
+			"failed to find showtime",
+		)
 	}
 
-	if !showtime.EndTime.After(time.Now()) {
-		return nil, appErrors.ErrShowtimeFinished
+	now := time.Now()
+
+	if !showtime.EndTime.After(now) {
+		return nil, recordSpanError(
+			appErrors.ErrShowtimeFinished,
+			"showtime has already finished",
+		)
 	}
 
-	seats, err := s.SeatRepo.FindSeatByIDs(ctx, seatIDs)
+	seats, err := s.SeatRepo.FindSeatByIDs(
+		ctx,
+		seatIDs,
+	)
 	if err != nil {
-		return nil, err
+		return nil, recordSpanError(
+			err,
+			"failed to find seats",
+		)
 	}
 
 	if len(seats) != len(seatIDs) {
-		return nil, appErrors.ErrSeatNotFound
+		return nil, recordSpanError(
+			appErrors.ErrSeatNotFound,
+			"one or more seats not found",
+		)
 	}
 
 	for _, seat := range seats {
 		if seat.StudioID != showtime.StudioID {
-			return nil, appErrors.ErrSeatWrongStudio
+			return nil, recordSpanError(
+				appErrors.ErrSeatWrongStudio,
+				"seat does not belong to showtime studio",
+			)
 		}
 	}
 
-	bookedSeatIDs, err := s.Repo.FindBookedSeatIDs(ctx, req.ShowtimeID, seatIDs)
+	bookedSeatIDs, err := s.Repo.FindBookedSeatIDs(
+		ctx,
+		req.ShowtimeID,
+		seatIDs,
+	)
 	if err != nil {
-		return nil, err
+		return nil, recordSpanError(
+			err,
+			"failed to check booked seats",
+		)
 	}
 
 	if len(bookedSeatIDs) > 0 {
-		return nil, appErrors.ErrSeatAlreadyBooked
+		return nil, recordSpanError(
+			appErrors.ErrSeatAlreadyBooked,
+			"one or more seats are already booked",
+		)
 	}
 
 	totalPrice := showtime.Price * float64(len(seats))
 
+	span.SetAttributes(
+		attribute.Float64("booking.total_price", totalPrice),
+	)
+
 	bookingCode, err := generateBookingCode()
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate booking code: %w", err)
+		return nil, recordSpanError(
+			fmt.Errorf("failed to generate booking code: %w", err),
+			"failed to generate booking code",
+		)
 	}
 
-	locked, err := s.SeatLocker.LockSeats(ctx, req.ShowtimeID, req.SeatIDs, bookingCode, s.SeatLockTTL)
+	locked, err := s.SeatLocker.LockSeats(
+		ctx,
+		req.ShowtimeID,
+		seatIDs,
+		bookingCode,
+		s.SeatLockTTL,
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to lock seats: %w", err)
+		return nil, recordSpanError(
+			fmt.Errorf("failed to lock seats: %w", err),
+			"failed to execute seat lock",
+		)
 	}
 
 	if !locked {
+		span.SetAttributes(
+			attribute.Bool("booking.seat_lock_acquired", false),
+		)
+
+		span.AddEvent("seat_lock_denied")
+
+		span.RecordError(appErrors.ErrSeatLocked)
+		span.SetStatus(
+			codes.Error,
+			"seat lock denied",
+		)
+
 		return nil, appErrors.ErrSeatLocked
 	}
+
+	span.SetAttributes(
+		attribute.Bool("booking.seat_lock_acquired", true),
+	)
+
+	span.AddEvent("seat_lock_acquired")
 
 	unlock := true
 
 	defer func() {
-		if unlock {
-			_ = s.SeatLocker.UnlockSeats(
-				ctx,
-				req.ShowtimeID,
-				req.SeatIDs,
-				bookingCode,
-			)
+		if !unlock {
+			return
+		}
+
+		if err := s.SeatLocker.UnlockSeats(
+			ctx,
+			req.ShowtimeID,
+			seatIDs,
+			bookingCode,
+		); err != nil {
+
+			span.RecordError(err)
+
+			span.AddEvent("failed_to_unlock_seats")
 		}
 	}()
 
-	now := time.Now()
 	expiresAt := now.Add(s.SeatLockTTL)
 
 	booking := &models.Booking{
@@ -129,17 +245,25 @@ func (s *BookingServiceImpl) CreateBooking(ctx context.Context, userID uint, req
 	bookingSeats := make([]models.BookingSeat, 0, len(seats))
 
 	for _, seat := range seats {
-		bookingSeats = append(bookingSeats, models.BookingSeat{
-			ShowtimeID: req.ShowtimeID,
-			SeatID:     seat.ID,
-			Price:      showtime.Price,
-		})
+		bookingSeats = append(
+			bookingSeats,
+			models.BookingSeat{
+				ShowtimeID: req.ShowtimeID,
+				SeatID:     seat.ID,
+				Price:      showtime.Price,
+			},
+		)
 	}
 
 	err = s.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+
 		txBookingRepo := repository.NewBookingRepository(tx)
 
-		if err := txBookingRepo.CreateBooking(ctx, tx, booking); err != nil {
+		if err := txBookingRepo.CreateBooking(
+			ctx,
+			tx,
+			booking,
+		); err != nil {
 			return err
 		}
 
@@ -147,7 +271,11 @@ func (s *BookingServiceImpl) CreateBooking(ctx context.Context, userID uint, req
 			bookingSeats[i].BookingID = booking.ID
 		}
 
-		if err := txBookingRepo.CreateBookingSeats(ctx, tx, bookingSeats); err != nil {
+		if err := txBookingRepo.CreateBookingSeats(
+			ctx,
+			tx,
+			bookingSeats,
+		); err != nil {
 			return err
 		}
 
@@ -155,16 +283,43 @@ func (s *BookingServiceImpl) CreateBooking(ctx context.Context, userID uint, req
 	})
 
 	if err != nil {
+
 		if isDuplicateEntryError(err) {
+
+			span.RecordError(err)
+			span.SetStatus(
+				codes.Error,
+				"seat already booked during transaction",
+			)
+
 			return nil, appErrors.ErrSeatAlreadyBooked
 		}
 
-		return nil, err
+		return nil, recordSpanError(
+			err,
+			"failed to create booking transaction",
+		)
 	}
+
+	span.SetAttributes(
+		attribute.Int64("booking.id", int64(booking.ID)),
+	)
 
 	unlock = false
 
-	return s.GetBookingByID(ctx, userID, booking.ID)
+	result, err := s.GetBookingByID(
+		ctx,
+		userID,
+		booking.ID,
+	)
+	if err != nil {
+		return nil, recordSpanError(
+			err,
+			"failed to get created booking",
+		)
+	}
+
+	return result, nil
 }
 
 func (s *BookingServiceImpl) GetBookingByID(ctx context.Context, userID uint, id uint) (*response.BookingResponse, error) {

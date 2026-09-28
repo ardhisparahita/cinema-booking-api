@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/response"
+	applogger "github.com/ardhisparahita/cinema-booking-api/pkg/logger"
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/requestid"
@@ -31,6 +32,8 @@ func ResponseError(c fiber.Ctx, code int, message string, err error) error {
 		})
 	}
 
+	logWithTrace := applogger.FromContext(c.Context(), slog.Default())
+
 	loggerAttrs := []any{
 		"request_id", requestid.FromContext(c),
 		"method", c.Method(),
@@ -45,11 +48,11 @@ func ResponseError(c fiber.Ctx, code int, message string, err error) error {
 
 	switch {
 	case code >= 500:
-		slog.Error("api error", loggerAttrs...)
+		logWithTrace.Error("api error", loggerAttrs...)
 	case code >= 400:
-		slog.Warn("api error", loggerAttrs...)
+		logWithTrace.Warn("api error", loggerAttrs...)
 	default:
-		slog.Info("api error", loggerAttrs...)
+		logWithTrace.Info("api error", loggerAttrs...)
 	}
 
 	return c.Status(code).JSON(response.WebResponse{

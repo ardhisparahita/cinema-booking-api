@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/ardhisparahita/cinema-booking-api/internal/dto/response"
+	applogger "github.com/ardhisparahita/cinema-booking-api/pkg/logger"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/requestid"
 )
@@ -20,6 +21,8 @@ func ErrorHandler(c fiber.Ctx, err error) error {
 		message = fiberErr.Message
 	}
 
+	logWithTrace := applogger.FromContext(c.Context(), slog.Default())
+
 	requestID := requestid.FromContext(c)
 
 	attrs := []any{
@@ -31,9 +34,9 @@ func ErrorHandler(c fiber.Ctx, err error) error {
 	}
 
 	if code >= 500 {
-		slog.Error("unhandled request error", attrs...)
+		logWithTrace.Error("unhandled request error", attrs...)
 	} else {
-		slog.Warn("request error", attrs...)
+		logWithTrace.Warn("request error", attrs...)
 	}
 
 	return c.Status(code).JSON(response.ErrorResponse{

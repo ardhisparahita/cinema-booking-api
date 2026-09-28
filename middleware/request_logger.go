@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"time"
 
+	applogger "github.com/ardhisparahita/cinema-booking-api/pkg/logger"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/requestid"
 )
@@ -15,6 +16,8 @@ func RequestLogger(log *slog.Logger) fiber.Handler {
 		err := c.Next()
 
 		status := c.Response().StatusCode()
+
+		logWithTrace := applogger.FromContext(c.Context(), log)
 
 		attrs := []any{
 			"request_id", requestid.FromContext(c),
@@ -33,13 +36,13 @@ func RequestLogger(log *slog.Logger) fiber.Handler {
 			if err != nil {
 				attrs = append(attrs, "error", err)
 			}
-			log.Error("request completed with server error", attrs...)
+			logWithTrace.Error("request completed with server error", attrs...)
 
 		case status >= 400:
-			log.Error("request completed with client error", attrs...)
+			logWithTrace.Error("request completed with client error", attrs...)
 
 		default:
-			log.Info("request completed", attrs...)
+			logWithTrace.Info("request completed", attrs...)
 		}
 
 		return err
