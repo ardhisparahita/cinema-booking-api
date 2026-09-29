@@ -25,6 +25,16 @@ func ConnectDB() (*gorm.DB, error) {
 	}
 
 	sqlDB, err := db.DB()
+	stats := sqlDB.Stats()
+
+	fmt.Printf(
+		"Open=%d Idle=%d InUse=%d WaitCount=%d WaitDuration=%v\n",
+		stats.OpenConnections,
+		stats.Idle,
+		stats.InUse,
+		stats.WaitCount,
+		stats.WaitDuration,
+	)
 	if err != nil {
 		return nil, err
 	}
